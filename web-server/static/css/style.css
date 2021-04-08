@@ -1,0 +1,29 @@
+html{
+    background-color: white;
+    margin: 1vw;
+}
+
+header{
+    background-color: rgba(0,0,0,.1);
+    box-shadow: 1px 1px 10px rgba(1,1,1,.5);
+    display: flex;
+    flex-direction: column;
+}
+
+.inline {
+    display: inline;
+    padding: 0px 10px;
+    margin: 0px 10px;
+}
+
+.mainflex {
+    border: 1px solid black;
+    padding-bottom: 15px;
+    width: 100%
+}
+
+.logflex {
+    display: flex;
+    flex-flow: column wrap;
+    padding-left: 20px;
+}
