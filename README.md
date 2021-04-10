@@ -1,5 +1,5 @@
 ## **RE Search Aggregator**
-### This application will provide an unified portal to prospective and current students to view which colleges and professors wonk under their choice of research field.
+### This application will provide an unified portal to prospective and current students to view which colleges and professors work under their choice of research field.
 #### Version - 0.1
 #### Instructions to run:
 1. Create a **Google App Engine** account
@@ -14,17 +14,17 @@
 10. Note down the bucket-name and update the variable `BUCKET_NAME` in web-server/app.py and app-tier/app-tier.py
 11. Install the required python packages from either of the requirements.txt files found in app-tier/ or web-server/
 12. OS Specific installation for ``pdftotext python library ->
-    a. Debian, Ubuntu, and friends
-        sudo apt install build-essential libpoppler-cpp-dev pkg-config python3-dev
-    b. Fedora, Red Hat, and friends
-        sudo yum install gcc-c++ pkgconfig poppler-cpp-devel python3-devel
-    c. macOS
-        brew install pkg-config poppler python
-    d. Windows
-        Currently tested only when using conda:
-            Install the Microsoft Visual C++ Build Tools 14.0.0
-            Install poppler through conda:
-                conda install -c conda-forge poppler
+    - Debian, Ubuntu, and friends
+      - sudo apt install build-essential libpoppler-cpp-dev pkg-config python3-dev
+    - Fedora, Red Hat, and friends
+      - sudo yum install gcc-c++ pkgconfig poppler-cpp-devel python3-devel
+    - macOS
+      - brew install pkg-config poppler python
+    - Windows
+      - Currently tested only when using conda:
+        - Install the Microsoft Visual C++ Build Tools 14.0.0
+        - Install poppler through conda:
+          - conda install -c conda-forge poppler
 13. Open two terminals, cd into each directory ` cd ./web-server` and run `./startWebServer.{your extension}` and similarly `cd ./app-tier` and run `.\startAppTier.{your extension}` scripts (Ubuntu/Linux/MacOS use .sh and Windows use .ps1) 
 14. Open *localhost:5000* and enter *https://cidse.engineering.asu.edu/faculty/* to test (for now)
 15. You won't get anything on the front end, but you should see processing happening on the terminal. 
