@@ -48,7 +48,7 @@ top_path = pub_client.topic_path(PROJECT_ID, constants["output-topic"])
 sub_client = SubscriberClient()
 sub_path = sub_client.subscription_path(
     PROJECT_ID, constants["job-worker-sub"])
-flow_control = FlowControl(max_messages=10)
+flow_control = FlowControl(max_messages=50)
 
 
 def process_job(pay_load):
@@ -59,26 +59,30 @@ def process_job(pay_load):
     links = []
     threads = []
     if data["Type"] == constants["faculty"]:
-        thread = threading.Thread(
-            target=work_on_jobs, args=(message, data["Level"],))
-        threads.append(thread)
-        thread.start()
+        # thread = threading.Thread(
+        #     target=work_on_jobs, args=(message, data["Level"],))
+        # threads.append(thread)
+        # thread.start()
+        work_on_jobs(message, data["Level"])
     elif data["Type"] == constants["profile"]:
-        thread = threading.Thread(
-            target=extract_links_isearch, args=(message, data["Level"],))
-        threads.append(thread)
-        thread.start()
+        # thread = threading.Thread(
+        #     target=extract_links_isearch, args=(message, data["Level"],))
+        # threads.append(thread)
+        # thread.start()
+        extract_links_isearch(message, data["Level"])
     elif data["Type"] == constants["pdf"]:
-        thread = threading.Thread(target=parse_pdf, args=(message,))
-        threads.append(thread)
-        thread.start()
+    #     thread = threading.Thread(target=parse_pdf, args=(message,))
+    #     threads.append(thread)
+    #     thread.start()
+        parse_pdf(message)
     else:
-        thread = threading.Thread(
-            target=extract_links_others, args=(message, data["Level"],))
-        threads.append(thread)
-        thread.start()
-    for thread in threads:
-        thread.join()
+        extract_links_others(message, data["Level"])
+        # thread = threading.Thread(
+        #     target=extract_links_others, args=(message, data["Level"],))
+        # threads.append(thread)
+        # thread.start()
+    # for thread in threads:
+    #     thread.join()
     pay_load.ack()
 
 

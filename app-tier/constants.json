@@ -1,0 +1,15 @@
+{
+    "job-topic":"job_topic",
+    "job-worker-sub":"job-worker-sub",
+
+    "output-topic":"output_topic",
+    "result-sub":"result-sub",
+
+    "faculty":"faculty",
+    "profile":"profile",
+    "lab":"lab",
+    "pdf":"pdf",
+    "others":"others",
+
+    "max_level":5
+}

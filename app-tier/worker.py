@@ -9,8 +9,10 @@ import json
 from tqdm import tqdm
 from urllib.parse import urljoin
 from google.cloud.pubsub_v1 import PublisherClient
+from google.cloud import storage
 from google.cloud.datastore import Client, Entity
 import urllib
+import traceback
 
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -44,7 +46,7 @@ BUCKET_NAME = "staging.sss-cc-gae-310003.appspot.com"
 PROJECT_ID = "sss-cc-gae-310003"
 
 
-# download_blob(BUCKET_NAME, 'constants.json', 'constants.json')
+download_blob(BUCKET_NAME, 'constants.json', 'constants.json')
 with open('constants.json', 'r') as c:
     constants = json.load(c)
 
@@ -88,32 +90,25 @@ def create_link_job(URL, level):
 
 
 def post_link_job(URL, level):
-    level += 1
-    if level < constants["max_level"]:
-        data_obj = create_link_job(URL, level)
-        publish_working_topic(data_obj)
-    else:
-        print("No more jobs will be published, max level for this link reached")
+    data_obj = create_link_job(URL, level)
+    publish_working_topic(data_obj)
 
 
-def post_paperdata_entity(title, abstract, contribs):
-    if len(title) > 0:
-        title = title.replace('\n',' ')
-    if len(contribs) > 0:
-        contribs = contribs.replace('\n',' ')
-    if len(abstract) > 20:
+def post_paperdata_entity(abstract):
+    if len(abstract) > 40:
         abstract = abstract.replace('\n',' ')
+        abstract = abstract.replace('\r',' ')
     else:
         return
     eid = str(uuid.uuid4())
     key = ds_client.key('PaperData',eid)
-    entity = Entity(key=key, exclude_from_indexes=('abstract', 'contribs',))
-    entity['title'] = title
+    entity = Entity(key=key, exclude_from_indexes=('abstract',))
     entity['abstract'] = abstract
-    entity['contribs'] = contribs
     with open('paperdata.txt','a') as f:
-        f.write(json.dumps(entity))
         f.write('\n')
+        f.write(abstract)
+        f.write('\n')
+
     # ds_client.put(entity)
 
 
@@ -128,8 +123,6 @@ def post_professorinfo_entity(prof_obj):
 
 def work_on_jobs(URL, level):
     # link to faculty page
-    # TODO: Make it input
-    # URL = "https://cidse.engineering.asu.edu/faculty/"
     page = requests.get(URL, verify=False)
     soup = BeautifulSoup(page.content, "html.parser")
 
@@ -171,173 +164,148 @@ def work_on_jobs(URL, level):
         if "links" in prof_obj:
             prof_obj["links"] = list(prof_obj["links"])
         post_professorinfo_entity(prof_obj)
-        # prof_objs.append(prof_obj)
-
-    # print("there are ", len(links), "links")
-    # return prof_objs, sorted(list(links))
 
 
 def extract_links_isearch(URL, level):
     lines = []
     papers_list = []
     links = set()
-    try:
-        # parse url and fetch webpage
-        page = requests.get(URL, verify=False)
-        # setup scraper api
-        soup = BeautifulSoup(page.content, "html.parser")
-        # select research content
-        research = soup.select_one("#research")
-        if research:
-            papers = research.select("p")
-            for paper in papers:
-                text_lower = paper.text.lower()
-                # add the paper content
-                papers_list.append(text_lower)
-                post_paperdata_entity('', text_lower, '')
-                # TODO: improve this logic
-                # Extract author, paper and anything else extra
-                texts = text_lower.split(")")
-                obj = {"extra": []}
-                for i in range(len(texts)):
-                    if i == 0:
-                        obj["author"] = texts[i]
-                    elif i == 1:
-                        obj["paper"] = texts[i]
-                    elif i > 1:
-                        obj["extra"].append(texts[i])
-        # fetch next jobs
-        # select more links inside research/bio
-        a_tags = research.select("a") if research else []
-        bio = soup.select_one("#bio")
-        more_a_tags = bio.select("a")
-        tags = a_tags + more_a_tags
-        # process all selected links
-        for tag in tags:
-            href = tag["href"].lower()
-            # filter links that redirect to people profiles
-            isPerson = re.search("people", href)
-            # select links that are from these websites
-            # isResearch = re.search("(?:asu.edu|doi|lab|github.io|arxiv|ieeexplore|acm|springer)", href)
-            isScholar = re.search("scholar", href)
-            # filter links that direct to files/emails
-            isFile = re.search("(?:.jpg|.png|.jpeg|@)", href)
-            hasHttp = re.search("http", href)
-            if not (isPerson or isFile or isScholar) and hasHttp:
-                # and isResearch
-                post_link_job(href, level)
-                links.add(href)
-        with open('links.txt','a') as l:
-            l.writelines(lines)
-            l.write('\n')
-    except Exception as e:
-        print('='*40,'ISEARCH','='*40)
-        print(e)
+    level += 1
+    if level < constants["max_level"]:
+        try:
+            # parse url and fetch webpage
+            page = requests.get(URL, verify=False)
+            # setup scraper api
+            soup = BeautifulSoup(page.content, "html.parser")
+            # select research content
+            research = soup.select_one("#research")
+            if research:
+                papers = research.select("p")
+                for paper in papers:
+                    text_lower = paper.text.lower()
+                    # add the paper content
+                    papers_list.append(text_lower)
+                    # post_paperdata_entity('', text_lower, '')
+                    # TODO: improve this logic
+                    # Extract author, paper and anything else extra
+                    texts = text_lower.split(")")
+                    obj = {"extra": []}
+                    for i in range(len(texts)):
+                        if i == 0:
+                            obj["author"] = texts[i]
+                        elif i == 1:
+                            obj["paper"] = texts[i]
+                        elif i > 1:
+                            obj["extra"].append(texts[i])
+            # fetch next jobs
+            # select more links inside research/bio
+            a_tags = research.select("a") if research else []
+            bio = soup.select_one("#bio")
+            more_a_tags = bio.select("a") if bio else []
+            tags = a_tags + more_a_tags
+            # process all selected links
+            for tag in tags:
+                href = tag["href"].lower()
+                # filter links that redirect to people profiles
+                isPerson = re.search("(?:people|profile)", href)
+                # select links that are from these websites
+                isFiller = re.search("(?:springer|researchgate|linkedin|video|youtube|scholar|sci.asu|facebook|twitter|messenger|pinterest)", href)
+                # filter links that direct to files/emails
+                isFile = re.search("(?:.jpg|.png|.jpeg|@)", href)
+                hasHttp = re.search("http", href)
+                if not (isPerson or isFile or isFiller)  and hasHttp:
+                    # and isResearch
+                    post_link_job(href, level)
+                    links.add(href)
+            with open('links.txt','a') as l:
+                l.write('\n')
+                l.writelines(links)
+                l.write('\n')
+        except Exception as e:
+            print('='*40,'ISEARCH','='*40)
+            # print(traceback.print_exc())
+            print(e)
+    else:
+        print("Max level reached for {}, skipping".format(URL))
 
 def extract_links_others(URL, level):
     papers_list = []
     links = set()
-    try:
-        # parse url and fetch webpage
-        page = requests.get(URL, verify=False)
-        # setup scraper api
-        soup = BeautifulSoup(page.content, "html.parser")
+    lines = []
+    level += 1
+    if level < constants["max_level"]:
+        try:
+            # parse url and fetch webpage
+            page = requests.get(URL, verify=False)
+            # setup scraper api
+            soup = BeautifulSoup(page.content, "html.parser")
 
-        # find if there are any list elements
-        list_elems = soup.select("li")
-        for elem in list_elems:
-            text = elem.text.lower()
-            post_paperdata_entity('', text, '')
-            papers_list.append(text)
+            # find if there are any list elements
+            list_elems = soup.select("li")
+            for elem in list_elems:
+                text = elem.text.lower()
+                # post_paperdata_entity(text)
+                papers_list.append(text)
 
-        # select all attributes
-        attrs = soup.select("a")
-        for attr in attrs:
-            try:
-                if attr["href"]:
-                    href = attr["href"].lower()
-                    checker = href + "||" + attr.text
-                    hasKeywords = re.search(
-                        "(?:publication|research|paper|journal|project|service|link)", checker)
-                    hasHttp = re.search("http", href)
-                    isRelative = re.match(r'\\.*', href)
-                    # add more jobs to respective sites
-                    if hasKeywords and hasHttp:
-                        post_link_job(href, level)
-                        links.add(href)
-                    elif hasKeywords and isRelative:
-                        link = urljoin(URL, href)
-                        post_link_job(link, level)
-                        links.add(link)    
-            except :
-                pass
-        with open('links.txt','a') as l:
-            l.writelines(lines)
-            l.write('\n')
-    except Exception as e:
-        print('='*40,'OTHERS','='*40)
-        print(e)
+            # select all attributes
+            attrs = soup.select("a")
+            for attr in attrs:
+                try:
+                    if attr["href"]:
+                        href = attr["href"].lower()
+                        checker = href + "||" + attr.text
+                        hasKeywords = re.search(
+                            "(?:publication|research|paper|journal|project|service|link)", checker)
+                        hasHttp = re.search("http", href)
+                        isRelative = re.match(r'\\.*', href)
+                        # add more jobs to respective sites
+                        if hasKeywords and hasHttp:
+                            post_link_job(href, level)
+                            links.add(href)
+                        elif hasKeywords and isRelative:
+                            link = urljoin(URL, href)
+                            post_link_job(link, level)
+                            links.add(link)    
+                except :
+                    pass
+            with open('links.txt','a') as l:
+                l.write('\n')
+                l.writelines(links)
+                l.write('\n')
+        except Exception as e:
+            print('='*40,'OTHERS','='*40)
+            print(e)
+    else:
+        print("Max level reached for {}, skipping".format(URL))
 
 def extract_abstract(pdf):
-    col1 = ''
-    col2 = ''
-    result = re.search('Abstract[\s\S]*Introduction', pdf[0])
+    result = re.search('[\s\S]*Introduction', pdf[0])
     if result:
-        lines = result[0].split('\n')
-        for line in lines:
-            line = '(SPECIAL)' + line
-            sub = re.sub('\s{5,}', '(SPLIT)', line)
-            # print(sub)
-            cols = sub.split('(SPLIT)')
-            # print('-'*100)
-            # print(cols)
-            for i, col in enumerate(cols):
-                # print(i)
-                text = re.sub('\(SPECIAL\)', '', col)
-                if i == 0:
-                    col1 += ' ' + text
-                else:
-                    col2 += ' ' + text
-
-def extract_title(pdf):
-    result = pdf[0].trim().split('\n')
-    if result:
-        print('-'*75)
-        print('Title is ', result[0])
         return result[0]
-    return ''
-
-def extract_contribs(pdf, title):
-    result = re.search('[\s\S]*Abstract')
-    if result:
-        result = re.sub(title,result)
-        print('-'*75)
-        print('contribs are ', result)
-        return result
     return ''
 
 def parse_pdf(URL):
     # page = requests.get(URL)
     def download_file(download_url, filename):
         response = urllib.request.urlopen(download_url)
-        file = open(filename, 'wb')
+        path = './pdfs/' + filename
+        file = open(path, 'wb')
         file.write(response.read())
         file.close()
     file = URL.split('/')[-1]
     try:
         download_file(URL, file)
-        col1 = ''
-        col2 = ''
-        with open(file, 'rb') as pdfFile:
+        path = './pdfs/' + file
+        with open(path, 'rb') as pdfFile:
             pdf = pdftotext.PDF(pdfFile)
-            col1, col2 = extract_abstract(pdf)
-            title = extract_heading(pdf)
-            contribs = extract_contribs(pdf, title)
-            post_paperdata_entity(title, col1, contribs)
-        if os.path.exists(file):
-            os.remove(file)
+            abstract = extract_abstract(pdf)
+            post_paperdata_entity(abstract)
+        print('processed ', file)
+        if os.path.exists(path):
+            print('deleted file ', file)
+            os.remove(path)
         else:
             print("The file {} does not exist".format(file))
     except Exception as e:
-        print('='*40,'PARSEPDF','='*40)
+        print('='*40,'PARSEPDF',URL)
         print(e)
