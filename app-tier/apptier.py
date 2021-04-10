@@ -1,10 +1,12 @@
 from google.cloud.pubsub_v1 import PublisherClient, SubscriberClient
+from google.cloud.pubsub_v1.types import FlowControl
 import json
 from google.cloud import storage
 import uuid
 import os
+import threading
 import time
-from worker import work_on_jobs
+from worker import work_on_jobs, extract_links_isearch, extract_links_others, parse_pdf
 
 
 def download_blob(bucket_name, source_blob_name, destination_file_name):
@@ -33,38 +35,59 @@ def download_blob(bucket_name, source_blob_name, destination_file_name):
 
 BUCKET_NAME = "staging.sss-cc-gae-310003.appspot.com"
 PROJECT_ID = "sss-cc-gae-310003"
+request_count = 0
 
 download_blob(BUCKET_NAME, 'constants.json', 'constants.json')
-with open('constants.json','r') as c:
+with open('constants.json', 'r') as c:
     constants = json.load(c)
 
 pub_client = PublisherClient()
-sub_client = SubscriberClient()
-sub_path = sub_client.subscription_path(PROJECT_ID, constants["job-worker-sub"])
 top_path = pub_client.topic_path(PROJECT_ID, constants["output-topic"])
 
 
+sub_client = SubscriberClient()
+sub_path = sub_client.subscription_path(
+    PROJECT_ID, constants["job-worker-sub"])
+flow_control = FlowControl(max_messages=10)
+
+
 def process_job(pay_load):
-    message = pay_load.data.decode("UTF-8")
-    prof_obs, links = work_on_jobs(message)
-    print('sending messageS {}'.format(len(prof_obs)))
-    for prof in prof_obs:
-        prof['total'] = len(prof_obs)
-        data = json.dumps(prof).encode("UTF-8")
-        future = pub_client.publish(top_path, data)
-        try:
-            message_id = future.result()
-        except:
-            print("Some error while sending message to {}".format(top_path))
+    data_str = pay_load.data.decode("UTF-8")
+    data = json.loads(data_str)
+    message = data["URL"]
+    prof_obs = []
+    links = []
+    threads = []
+    if data["Type"] == constants["faculty"]:
+        thread = threading.Thread(
+            target=work_on_jobs, args=(message, data["Level"],))
+        threads.append(thread)
+        thread.start()
+    elif data["Type"] == constants["profile"]:
+        thread = threading.Thread(
+            target=extract_links_isearch, args=(message, data["Level"],))
+        threads.append(thread)
+        thread.start()
+    elif data["Type"] == constants["pdf"]:
+        thread = threading.Thread(target=parse_pdf, args=(message,))
+        threads.append(thread)
+        thread.start()
+    else:
+        thread = threading.Thread(
+            target=extract_links_others, args=(message, data["Level"],))
+        threads.append(thread)
+        thread.start()
+    for thread in threads:
+        thread.join()
     pay_load.ack()
 
+
 print('listening to {} path for messages'.format(sub_path))
-sub_future = sub_client.subscribe(sub_path, callback = process_job)
+sub_future = sub_client.subscribe(
+    sub_path, callback=process_job, flow_control=flow_control)
 
 try:
     sub_future.result()
 except:
     print('some error while subscribing to {}'.format(sub_path))
     sub_future.cancel()
-
-

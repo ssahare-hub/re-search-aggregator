@@ -74,7 +74,13 @@ def home_page():
         # request_data = request.get_json()
         print('received data from POST', website)
         if website:
-            data = website.encode("UTF-8")
+            data_obj = {
+                "URL" : website,
+                "Type" : constants["faculty"],
+                "Level" : 0
+            }
+            data_str = json.dumps(data_obj)
+            data = data_str.encode("UTF-8")
             # TODO: post message in topic
             try:
                 future = pub_client.publish(top_path, data)
@@ -116,7 +122,6 @@ def output_listener_thread():
 
 # TODO: listen to response subscription
 # listening to subscription for output topic
-
 if __name__ == '__main__':
     print('starting listening to output sub')
     t1 = Thread(target=output_listener_thread)
