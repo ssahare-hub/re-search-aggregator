@@ -63,20 +63,20 @@ def process_job(pay_load):
         #     target=work_on_jobs, args=(message, data["Level"],))
         # threads.append(thread)
         # thread.start()
-        work_on_jobs(message, data["Level"])
+        work_on_jobs(message, data["Level"], data["Meta"])
     elif data["Type"] == constants["profile"]:
         # thread = threading.Thread(
         #     target=extract_links_isearch, args=(message, data["Level"],))
         # threads.append(thread)
         # thread.start()
-        extract_links_isearch(message, data["Level"])
+        extract_links_isearch(message, data["Level"], data["Meta"])
     elif data["Type"] == constants["pdf"]:
     #     thread = threading.Thread(target=parse_pdf, args=(message,))
     #     threads.append(thread)
     #     thread.start()
-        parse_pdf(message)
+        parse_pdf(message, data["Meta"])
     else:
-        extract_links_others(message, data["Level"])
+        extract_links_others(message, data["Level"], data["Meta"])
         # thread = threading.Thread(
         #     target=extract_links_others, args=(message, data["Level"],))
         # threads.append(thread)

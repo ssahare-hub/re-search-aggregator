@@ -77,7 +77,8 @@ def home_page():
             data_obj = {
                 "URL" : website,
                 "Type" : constants["faculty"],
-                "Level" : 0
+                "Level" : 0,
+                "Meta": ""
             }
             data_str = json.dumps(data_obj)
             data = data_str.encode("UTF-8")

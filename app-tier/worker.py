@@ -67,12 +67,13 @@ def publish_working_topic(data_obj):
         job_id = "CANNOT_PUBLISH_TO_TOPIC"
 
 
-def create_link_job(URL, level):
+def create_link_job(URL, level, prof_name):
     # classify as profile/lab/pdf/others
     data = {
         "URL": URL,
         "Level": level,
-        "Type": ""
+        "Type": "",
+        "Meta": prof_name
     }
     URL = URL.lower()
     isProfile = re.search('(?:people|isearch)', URL)
@@ -89,13 +90,13 @@ def create_link_job(URL, level):
     return data
 
 
-def post_link_job(URL, level):
-    data_obj = create_link_job(URL, level)
+def post_link_job(URL, level, prof_name):
+    data_obj = create_link_job(URL, level, prof_name)
     publish_working_topic(data_obj)
 
 
-def post_paperdata_entity(abstract):
-    if len(abstract) > 40:
+def post_paperdata_entity(abstract, prof_name):
+    if len(abstract) >= constants["min_abstract_len"]:
         abstract = abstract.replace('\n',' ')
         abstract = abstract.replace('\r',' ')
     else:
@@ -104,10 +105,9 @@ def post_paperdata_entity(abstract):
     key = ds_client.key('PaperData',eid)
     entity = Entity(key=key, exclude_from_indexes=('abstract',))
     entity['abstract'] = abstract
+    entity['professor'] = prof_name
     with open('paperdata.txt','a') as f:
-        f.write('\n')
-        f.write(abstract)
-        f.write('\n')
+        f.writelines([json.dumps(entity)])
 
     # ds_client.put(entity)
 
@@ -121,7 +121,7 @@ def post_professorinfo_entity(prof_obj):
     # ds_client.put(entity)
 
 
-def work_on_jobs(URL, level):
+def work_on_jobs(URL, level, prof_name):
     # link to faculty page
     page = requests.get(URL, verify=False)
     soup = BeautifulSoup(page.content, "html.parser")
@@ -144,16 +144,19 @@ def work_on_jobs(URL, level):
             isEmail = re.search("@", name.text)
             if isEmail:
                 prof_obj["email"] = name.text
+                prof_name = name.text if "name" not in prof_obj else prof_obj["name"]
             else:
                 isResearchWebsite = re.search("website", name.text.lower())
                 if not isResearchWebsite:
                     prof_obj["name"] = name.text
+                    prof_name = prof_obj["name"]
             if name["href"]:
                 href = name["href"].lower()
                 # filters emails
                 isLink = re.search("http", href)
                 if isLink:
-                    post_link_job(href, level)
+                    # TODO: add if check for prof["name"]
+                    post_link_job(href, level, prof_name)
                     links.add(href)
                     if "links" in prof_obj:
                         prof_obj["links"].add(href)
@@ -166,7 +169,7 @@ def work_on_jobs(URL, level):
         post_professorinfo_entity(prof_obj)
 
 
-def extract_links_isearch(URL, level):
+def extract_links_isearch(URL, level, prof_name):
     lines = []
     papers_list = []
     links = set()
@@ -185,7 +188,9 @@ def extract_links_isearch(URL, level):
                     text_lower = paper.text.lower()
                     # add the paper content
                     papers_list.append(text_lower)
-                    # post_paperdata_entity('', text_lower, '')
+                    post_paperdata_entity(text_lower, prof_name)
+                    # with open('paperdata.txt','a') as f:
+                    #     f.writelines([prof_name, text_lower])
                     # TODO: improve this logic
                     # Extract author, paper and anything else extra
                     texts = text_lower.split(")")
@@ -209,18 +214,18 @@ def extract_links_isearch(URL, level):
                 # filter links that redirect to people profiles
                 isPerson = re.search("(?:people|profile)", href)
                 # select links that are from these websites
-                isFiller = re.search("(?:springer|researchgate|linkedin|video|youtube|scholar|sci.asu|facebook|twitter|messenger|pinterest)", href)
+                isFiller = re.search("(?:google|javascript|springer|researchgate|linkedin|video|youtube|scholar|sci.asu|facebook|twitter|messenger|pinterest)", href)
                 # filter links that direct to files/emails
                 isFile = re.search("(?:.jpg|.png|.jpeg|@)", href)
                 hasHttp = re.search("http", href)
                 if not (isPerson or isFile or isFiller)  and hasHttp:
                     # and isResearch
-                    post_link_job(href, level)
+                    post_link_job(href, level, prof_name)
                     links.add(href)
-            with open('links.txt','a') as l:
-                l.write('\n')
-                l.writelines(links)
-                l.write('\n')
+            # with open('links.txt','a') as l:
+            #     l.write('\n')
+            #     l.writelines(links)
+            #     l.write('\n')
         except Exception as e:
             print('='*40,'ISEARCH','='*40)
             # print(traceback.print_exc())
@@ -228,7 +233,7 @@ def extract_links_isearch(URL, level):
     else:
         print("Max level reached for {}, skipping".format(URL))
 
-def extract_links_others(URL, level):
+def extract_links_others(URL, level, prof_name):
     papers_list = []
     links = set()
     lines = []
@@ -244,7 +249,9 @@ def extract_links_others(URL, level):
             list_elems = soup.select("li")
             for elem in list_elems:
                 text = elem.text.lower()
-                # post_paperdata_entity(text)
+                post_paperdata_entity(text, prof_name)
+                # with open('paperdata.txt','a') as f:
+                #     f.writelines([prof_name, text])
                 papers_list.append(text)
 
             # select all attributes
@@ -256,22 +263,24 @@ def extract_links_others(URL, level):
                         checker = href + "||" + attr.text
                         hasKeywords = re.search(
                             "(?:publication|research|paper|journal|project|service|link)", checker)
+                        isFiller = re.search("(?:google|javascript|springer|researchgate|linkedin|video|youtube|scholar|sci.asu|facebook|twitter|messenger|pinterest)", href)
                         hasHttp = re.search("http", href)
                         isRelative = re.match(r'\\.*', href)
                         # add more jobs to respective sites
-                        if hasKeywords and hasHttp:
-                            post_link_job(href, level)
-                            links.add(href)
-                        elif hasKeywords and isRelative:
-                            link = urljoin(URL, href)
-                            post_link_job(link, level)
-                            links.add(link)    
+                        if not isFiller:
+                            if hasKeywords and hasHttp:
+                                post_link_job(href, level, prof_name)
+                                links.add(href)
+                            elif hasKeywords and isRelative:
+                                link = urljoin(URL, href)
+                                post_link_job(link, level, prof_name)
+                                links.add(link)    
                 except :
                     pass
-            with open('links.txt','a') as l:
-                l.write('\n')
-                l.writelines(links)
-                l.write('\n')
+            # with open('links.txt','a') as l:
+            #     l.write('\n')
+            #     l.writelines(links)
+            #     l.write('\n')
         except Exception as e:
             print('='*40,'OTHERS','='*40)
             print(e)
@@ -284,7 +293,7 @@ def extract_abstract(pdf):
         return result[0]
     return ''
 
-def parse_pdf(URL):
+def parse_pdf(URL, prof_name):
     # page = requests.get(URL)
     def download_file(download_url, filename):
         response = urllib.request.urlopen(download_url)
@@ -295,17 +304,22 @@ def parse_pdf(URL):
     file = URL.split('/')[-1]
     try:
         download_file(URL, file)
-        path = './pdfs/' + file
+    except Exception as e:
+        print('-'*40,'Cannot Download PDF',URL)
+        print(e)
+        return
+    path = './pdfs/' + file
+    try:
         with open(path, 'rb') as pdfFile:
             pdf = pdftotext.PDF(pdfFile)
             abstract = extract_abstract(pdf)
-            post_paperdata_entity(abstract)
-        print('processed ', file)
-        if os.path.exists(path):
-            print('deleted file ', file)
-            os.remove(path)
-        else:
-            print("The file {} does not exist".format(file))
-    except Exception as e:
-        print('='*40,'PARSEPDF',URL)
-        print(e)
+            post_paperdata_entity(abstract, prof_name)
+    except Exception as f:
+        print('--------','Processing PDF','--------')
+        print(f)
+    print('processed ', file)
+    if os.path.exists(path):
+        print('deleted file ', file)
+        os.remove(path)
+    else:
+        print("The file {} does not exist".format(file))
