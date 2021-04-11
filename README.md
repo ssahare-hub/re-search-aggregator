@@ -27,5 +27,6 @@
         - Install poppler through conda:
           - conda install -c conda-forge poppler
 13. Open two terminals, cd into each directory ` cd ./web-server` and run `./startWebServer.{your extension}` and similarly `cd ./app-tier` and run `.\startAppTier.{your extension}` scripts (Ubuntu/Linux/MacOS use .sh and Windows use .ps1) 
+    - If you get permission denied while running these commands, give execute permission by running `chmod +x filename`
 14. Open *localhost:5000* and enter *https://cidse.engineering.asu.edu/faculty/* to test (for now)
 15. You won't get anything on the front end, but you should see processing happening on the terminal. 
