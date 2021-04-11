@@ -12,7 +12,8 @@
 8. Download this key in **json format** and store it inside the *.ssh* (rename it to base-owner-sa.json to match the scripts that we will use to run it). !! This file can be inside any folder, just make sure to update `startWebServer` and `startAppTier` scripts 
 9. Go to **Google DataStore** and enable it then go to **Google Cloud Storage**, create a **new bucket** and *upload the constants.json file on* it.
 10. Note down the bucket-name and update the variable `BUCKET_NAME` in web-server/app.py and app-tier/app-tier.py
-11. Install the required python packages from either of the requirements.txt files found in app-tier/ or web-server/
+11. Install the required python packages from either of the requirements.txt files found in app-tier/ or web-server/ by running
+    - pip install -r ./requirements.txt
 12. OS Specific installation for ``pdftotext python library ->
     - Debian, Ubuntu, and friends
       - sudo apt install build-essential libpoppler-cpp-dev pkg-config python3-dev
