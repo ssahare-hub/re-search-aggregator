@@ -3,7 +3,7 @@ import os
 from pprint import pprint
 from bs4 import BeautifulSoup
 import re
-import pdftotext
+# import pdftotext
 import uuid
 import json
 from tqdm import tqdm
@@ -41,11 +41,11 @@ def download_blob(bucket_name, source_blob_name, destination_file_name):
         )
     )
 
-
+# CHANGE THESE VALUES ACCORDING TO YOUR APP ENGINE ACCOUNT
 BUCKET_NAME = "staging.sss-cc-gae-310003.appspot.com"
 PROJECT_ID = "sss-cc-gae-310003"
 
-
+# UPLOAD THIS FILE ONTO YOUR CLOUD STORAGE
 download_blob(BUCKET_NAME, 'constants.json', 'constants.json')
 with open('constants.json', 'r') as c:
     constants = json.load(c)
@@ -287,39 +287,39 @@ def extract_links_others(URL, level, prof_name):
     else:
         print("Max level reached for {}, skipping".format(URL))
 
-def extract_abstract(pdf):
-    result = re.search('[\s\S]*Introduction', pdf[0])
-    if result:
-        return result[0]
-    return ''
+# def extract_abstract(pdf):
+#     result = re.search('[\s\S]*Introduction', pdf[0])
+#     if result:
+#         return result[0]
+#     return ''
 
-def parse_pdf(URL, prof_name):
-    # page = requests.get(URL)
-    def download_file(download_url, filename):
-        response = urllib.request.urlopen(download_url)
-        path = './pdfs/' + filename
-        file = open(path, 'wb')
-        file.write(response.read())
-        file.close()
-    file = URL.split('/')[-1]
-    try:
-        download_file(URL, file)
-    except Exception as e:
-        print('-'*40,'Cannot Download PDF',URL)
-        print(e)
-        return
-    path = './pdfs/' + file
-    try:
-        with open(path, 'rb') as pdfFile:
-            pdf = pdftotext.PDF(pdfFile)
-            abstract = extract_abstract(pdf)
-            post_paperdata_entity(abstract, prof_name)
-    except Exception as f:
-        print('--------','Processing PDF','--------')
-        print(f)
-    print('processed ', file)
-    if os.path.exists(path):
-        print('deleted file ', file)
-        os.remove(path)
-    else:
-        print("The file {} does not exist".format(file))
+# def parse_pdf(URL, prof_name):
+#     # page = requests.get(URL)
+#     def download_file(download_url, filename):
+#         response = urllib.request.urlopen(download_url)
+#         path = './pdfs/' + filename
+#         file = open(path, 'wb')
+#         file.write(response.read())
+#         file.close()
+#     file = URL.split('/')[-1]
+#     try:
+#         download_file(URL, file)
+#     except Exception as e:
+#         print('-'*40,'Cannot Download PDF',URL)
+#         print(e)
+#         return
+#     path = './pdfs/' + file
+#     try:
+#         with open(path, 'rb') as pdfFile:
+#             pdf = pdftotext.PDF(pdfFile)
+#             abstract = extract_abstract(pdf)
+#             post_paperdata_entity(abstract, prof_name)
+#     except Exception as f:
+#         print('--------','Processing PDF','--------')
+#         print(f)
+#     print('processed ', file)
+#     if os.path.exists(path):
+#         print('deleted file ', file)
+#         os.remove(path)
+#     else:
+#         print("The file {} does not exist".format(file))
