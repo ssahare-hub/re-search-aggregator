@@ -32,11 +32,12 @@ def download_blob(bucket_name, source_blob_name, destination_file_name):
         )
     )
 
-
+# CHANGE THESE VALUES ACCORDING TO YOUR APP ENGINE ACCOUNT
 BUCKET_NAME = "staging.sss-cc-gae-310003.appspot.com"
 PROJECT_ID = "sss-cc-gae-310003"
 request_count = 0
 
+# UPLOAD THIS FILE ONTO YOUR CLOUD STORAGE
 download_blob(BUCKET_NAME, 'constants.json', 'constants.json')
 with open('constants.json', 'r') as c:
     constants = json.load(c)
@@ -74,7 +75,9 @@ def process_job(pay_load):
     #     thread = threading.Thread(target=parse_pdf, args=(message,))
     #     threads.append(thread)
     #     thread.start()
-        parse_pdf(message, data["Meta"])
+        # Don't process pdf
+        print('---pdf processing is disabled---')
+        # parse_pdf(message, data["Meta"])
     else:
         extract_links_others(message, data["Level"], data["Meta"])
         # thread = threading.Thread(
