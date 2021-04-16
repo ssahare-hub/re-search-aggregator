@@ -33,8 +33,8 @@ def download_blob(bucket_name, source_blob_name, destination_file_name):
     )
 
 
-BUCKET_NAME = "staging.sss-cc-gae-310003.appspot.com"
-PROJECT_ID = "sss-cc-gae-310003"
+BUCKET_NAME = "cc-test-309723.appspot.com"
+PROJECT_ID = "cc-test-309723"
 request_count = 0
 
 download_blob(BUCKET_NAME, 'constants.json', 'constants.json')

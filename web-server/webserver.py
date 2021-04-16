@@ -34,8 +34,8 @@ def download_blob(bucket_name, source_blob_name, destination_file_name):
 
 SECRET_KEY = "VERYCONFIDENTIAL"
 UPLOAD_FOLDER = "/uploads/"
-BUCKET_NAME = "staging.sss-cc-gae-310003.appspot.com"
-PROJECT_ID = "sss-cc-gae-310003"
+BUCKET_NAME = "cc-test-309723.appspot.com"
+PROJECT_ID = "cc-test-309723"
 # host flask server
 app = Flask(__name__)
 app.config['SECRET_KEY'] = SECRET_KEY
