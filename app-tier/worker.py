@@ -13,33 +13,26 @@ from google.cloud import storage
 from google.cloud.datastore import Client, Entity
 import urllib
 import traceback
+import pandas as pd
+
 
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+# df = pd.DataFrame({'data': [], 'prof': []})
+
 
 def download_blob(bucket_name, source_blob_name, destination_file_name):
-    """Downloads a blob from the bucket."""
-    # bucket_name = "your-bucket-name"
-    # source_blob_name = "storage-object-name"
-    # destination_file_name = "local/path/to/file"
-
     storage_client = storage.Client()
-
     bucket = storage_client.bucket(bucket_name)
-
-    # Construct a client side representation of a blob.
-    # Note `Bucket.blob` differs from `Bucket.get_blob` as it doesn't retrieve
-    # any content from Google Cloud Storage. As we don't need additional data,
-    # using `Bucket.blob` is preferred here.
     blob = bucket.blob(source_blob_name)
     blob.download_to_filename(destination_file_name)
-
     print(
         "Blob {} downloaded to {}.".format(
             source_blob_name, destination_file_name
         )
     )
+
 
 # CHANGE THESE VALUES ACCORDING TO YOUR APP ENGINE ACCOUNT
 BUCKET_NAME = "staging.sss-cc-gae-310003.appspot.com"
@@ -59,7 +52,6 @@ top_path = pub_client.topic_path(PROJECT_ID, constants["job-topic"])
 def publish_working_topic(data_obj):
     data_str = json.dumps(data_obj)
     data = data_str.encode("UTF-8")
-    # TODO: post message in topic
     try:
         future = pub_client.publish(top_path, data)
         job_id = future.result()
@@ -67,8 +59,8 @@ def publish_working_topic(data_obj):
         job_id = "CANNOT_PUBLISH_TO_TOPIC"
 
 
+# classifies the job as profile/lab/pdf/others
 def create_link_job(URL, level, prof_name):
-    # classify as profile/lab/pdf/others
     data = {
         "URL": URL,
         "Level": level,
@@ -90,38 +82,40 @@ def create_link_job(URL, level, prof_name):
     return data
 
 
-def post_link_job(URL, level, prof_name):
+# publishes the job to topic
+def publish_job(URL, level, prof_name):
     data_obj = create_link_job(URL, level, prof_name)
     publish_working_topic(data_obj)
 
-
+# post the entity to datastore
 def post_paperdata_entity(abstract, prof_name):
     if len(abstract) >= constants["min_abstract_len"]:
-        abstract = abstract.replace('\n',' ')
-        abstract = abstract.replace('\r',' ')
+        abstract = re.sub('(\n)+', '([NL])', abstract)
+        abstract = re.sub('(\r)+', '([NL])', abstract)
     else:
         return
     eid = str(uuid.uuid4())
-    key = ds_client.key('PaperData',eid)
+    key = ds_client.key('PaperData', eid)
     entity = Entity(key=key, exclude_from_indexes=('abstract',))
     entity['abstract'] = abstract
     entity['professor'] = prof_name
-    with open('paperdata.txt','a') as f:
-        f.writelines([json.dumps(entity)])
-
+    with open('papers_collected.txt','a') as f:
+        f.writelines([prof_name+','+abstract+'\n'])
     # ds_client.put(entity)
 
 
+# post the entity to datastore
 def post_professorinfo_entity(prof_obj):
     eid = str(uuid.uuid4())
-    key = ds_client.key('Professor',eid)
+    key = ds_client.key('Professor', eid)
     entity = Entity(key=key, exclude_from_indexes=('links',))
     for key in prof_obj.keys():
         entity[key] = prof_obj[key]
     # ds_client.put(entity)
 
 
-def work_on_jobs(URL, level, prof_name):
+# Parses the faculty page for the link given
+def parse_faculty_page(URL, level, prof_name):
     # link to faculty page
     page = requests.get(URL, verify=False)
     soup = BeautifulSoup(page.content, "html.parser")
@@ -155,8 +149,7 @@ def work_on_jobs(URL, level, prof_name):
                 # filters emails
                 isLink = re.search("http", href)
                 if isLink:
-                    # TODO: add if check for prof["name"]
-                    post_link_job(href, level, prof_name)
+                    publish_job(href, level, prof_name)
                     links.add(href)
                     if "links" in prof_obj:
                         prof_obj["links"].add(href)
@@ -168,7 +161,7 @@ def work_on_jobs(URL, level, prof_name):
             prof_obj["links"] = list(prof_obj["links"])
         post_professorinfo_entity(prof_obj)
 
-
+# parse the isearch links for professor info
 def extract_links_isearch(URL, level, prof_name):
     lines = []
     papers_list = []
@@ -183,14 +176,12 @@ def extract_links_isearch(URL, level, prof_name):
             # select research content
             research = soup.select_one("#research")
             if research:
-                papers = research.select("p")
+                papers = research.select("li")
                 for paper in papers:
-                    text_lower = paper.text.lower()
+                    text_lower = paper.text
                     # add the paper content
                     papers_list.append(text_lower)
                     post_paperdata_entity(text_lower, prof_name)
-                    # with open('paperdata.txt','a') as f:
-                    #     f.writelines([prof_name, text_lower])
                     # TODO: improve this logic
                     # Extract author, paper and anything else extra
                     texts = text_lower.split(")")
@@ -214,25 +205,22 @@ def extract_links_isearch(URL, level, prof_name):
                 # filter links that redirect to people profiles
                 isPerson = re.search("(?:people|profile)", href)
                 # select links that are from these websites
-                isFiller = re.search("(?:google|javascript|springer|researchgate|linkedin|video|youtube|scholar|sci.asu|facebook|twitter|messenger|pinterest)", href)
+                isFiller = re.search(
+                    "(?:google|javascript|springer|researchgate|linkedin|video|youtube|scholar|sci.asu|facebook|twitter|messenger|pinterest)", href)
                 # filter links that direct to files/emails
                 isFile = re.search("(?:.jpg|.png|.jpeg|@)", href)
                 hasHttp = re.search("http", href)
-                if not (isPerson or isFile or isFiller)  and hasHttp:
+                if not (isPerson or isFile or isFiller) and hasHttp:
                     # and isResearch
-                    post_link_job(href, level, prof_name)
+                    publish_job(href, level, prof_name)
                     links.add(href)
-            # with open('links.txt','a') as l:
-            #     l.write('\n')
-            #     l.writelines(links)
-            #     l.write('\n')
         except Exception as e:
-            print('='*40,'ISEARCH','='*40)
-            # print(traceback.print_exc())
+            print('='*40, 'ISEARCH', '='*40)
             print(e)
     else:
         print("Max level reached for {}, skipping".format(URL))
 
+# parses any other pages for paper data info
 def extract_links_others(URL, level, prof_name):
     papers_list = []
     links = set()
@@ -248,7 +236,7 @@ def extract_links_others(URL, level, prof_name):
             # find if there are any list elements
             list_elems = soup.select("li")
             for elem in list_elems:
-                text = elem.text.lower()
+                text = elem.text
                 post_paperdata_entity(text, prof_name)
                 # with open('paperdata.txt','a') as f:
                 #     f.writelines([prof_name, text])
@@ -263,26 +251,23 @@ def extract_links_others(URL, level, prof_name):
                         checker = href + "||" + attr.text
                         hasKeywords = re.search(
                             "(?:publication|research|paper|journal|project|service|link)", checker)
-                        isFiller = re.search("(?:google|javascript|springer|researchgate|linkedin|video|youtube|scholar|sci.asu|facebook|twitter|messenger|pinterest)", href)
+                        isFiller = re.search(
+                            "(?:google|javascript|springer|researchgate|linkedin|video|youtube|scholar|sci.asu|facebook|twitter|messenger|pinterest)", href)
                         hasHttp = re.search("http", href)
                         isRelative = re.match(r'\\.*', href)
                         # add more jobs to respective sites
                         if not isFiller:
                             if hasKeywords and hasHttp:
-                                post_link_job(href, level, prof_name)
+                                publish_job(href, level, prof_name)
                                 links.add(href)
                             elif hasKeywords and isRelative:
                                 link = urljoin(URL, href)
-                                post_link_job(link, level, prof_name)
-                                links.add(link)    
-                except :
+                                publish_job(link, level, prof_name)
+                                links.add(link)
+                except:
                     pass
-            # with open('links.txt','a') as l:
-            #     l.write('\n')
-            #     l.writelines(links)
-            #     l.write('\n')
         except Exception as e:
-            print('='*40,'OTHERS','='*40)
+            print('='*40, 'OTHERS', '='*40)
             print(e)
     else:
         print("Max level reached for {}, skipping".format(URL))

@@ -6,7 +6,7 @@ import uuid
 import os
 import threading
 import time
-from worker import work_on_jobs, extract_links_isearch, extract_links_others
+from worker import parse_faculty_page, extract_links_isearch, extract_links_others
 
 
 def download_blob(bucket_name, source_blob_name, destination_file_name):
@@ -49,6 +49,7 @@ top_path = pub_client.topic_path(PROJECT_ID, constants["output-topic"])
 sub_client = SubscriberClient()
 sub_path = sub_client.subscription_path(
     PROJECT_ID, constants["job-worker-sub"])
+    
 flow_control = FlowControl(max_messages=50)
 
 
@@ -64,7 +65,7 @@ def process_job(pay_load):
         #     target=work_on_jobs, args=(message, data["Level"],))
         # threads.append(thread)
         # thread.start()
-        work_on_jobs(message, data["Level"], data["Meta"])
+        parse_faculty_page(message, data["Level"], data["Meta"])
     elif data["Type"] == constants["profile"]:
         # thread = threading.Thread(
         #     target=extract_links_isearch, args=(message, data["Level"],))
