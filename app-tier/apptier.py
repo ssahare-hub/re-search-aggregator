@@ -76,9 +76,7 @@ def process_job(pay_load):
     #     thread = threading.Thread(target=parse_pdf, args=(message,))
     #     threads.append(thread)
     #     thread.start()
-        # Don't process pdf
-        print('---pdf processing is disabled---')
-        # parse_pdf(message, data["Meta"])
+        parse_pdf(message, data["Meta"])
     else:
         extract_links_others(message, data["Level"], data["Meta"])
         # thread = threading.Thread(
