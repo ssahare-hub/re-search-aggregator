@@ -6,7 +6,7 @@ import uuid
 import os
 import threading
 import time
-from worker import parse_faculty_page, extract_links_isearch, extract_links_others
+from worker import parse_faculty_page, extract_links_isearch, extract_links_others, parse_pdf
 
 
 def download_blob(bucket_name, source_blob_name, destination_file_name):

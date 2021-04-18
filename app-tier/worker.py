@@ -96,8 +96,7 @@ def publish_job(URL, level, prof_name):
 
 def post_paperdata_entity(abstract, prof_name):
     if len(abstract) >= constants["min_abstract_len"]:
-        abstract = re.sub('(\n)+', '([NL])', abstract)
-        abstract = re.sub('(\r)+', '([NL])', abstract)
+        abstract = re.sub('(?:\n|\r)+', '([NL])', abstract)
     else:
         return
     eid = str(uuid.uuid4())
