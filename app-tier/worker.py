@@ -3,7 +3,6 @@ import os
 from pprint import pprint
 from bs4 import BeautifulSoup
 import re
-# import pdftotext
 import uuid
 import json
 from tqdm import tqdm
@@ -15,11 +14,10 @@ import urllib
 import traceback
 import pandas as pd
 
+from tika import parser
 
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-# df = pd.DataFrame({'data': [], 'prof': []})
 
 
 def download_blob(bucket_name, source_blob_name, destination_file_name):
@@ -37,6 +35,12 @@ def download_blob(bucket_name, source_blob_name, destination_file_name):
 # CHANGE THESE VALUES ACCORDING TO YOUR APP ENGINE ACCOUNT
 BUCKET_NAME = "staging.sss-cc-gae-310003.appspot.com"
 PROJECT_ID = "sss-cc-gae-310003"
+URL_PATTERN = (
+    "((http|https)://)(www.)?"
+    + "[a-zA-Z0-9@:%._\\+~#?&//=]{2,256}\\.[a-z]"
+    + "{2,6}\\b([-a-zA-Z0-9@:%._\\+~#?&//=]*)"
+)
+
 
 # UPLOAD THIS FILE ONTO YOUR CLOUD STORAGE
 download_blob(BUCKET_NAME, 'constants.json', 'constants.json')
@@ -88,6 +92,8 @@ def publish_job(URL, level, prof_name):
     publish_working_topic(data_obj)
 
 # post the entity to datastore
+
+
 def post_paperdata_entity(abstract, prof_name):
     if len(abstract) >= constants["min_abstract_len"]:
         abstract = re.sub('(\n)+', '([NL])', abstract)
@@ -99,7 +105,7 @@ def post_paperdata_entity(abstract, prof_name):
     entity = Entity(key=key, exclude_from_indexes=('abstract',))
     entity['abstract'] = abstract
     entity['professor'] = prof_name
-    with open('papers_collected.txt','a') as f:
+    with open('papers_collected.txt', 'a') as f:
         f.writelines([prof_name+','+abstract+'\n'])
     # ds_client.put(entity)
 
@@ -162,6 +168,8 @@ def parse_faculty_page(URL, level, prof_name):
         post_professorinfo_entity(prof_obj)
 
 # parse the isearch links for professor info
+
+
 def extract_links_isearch(URL, level, prof_name):
     lines = []
     papers_list = []
@@ -221,6 +229,8 @@ def extract_links_isearch(URL, level, prof_name):
         print("Max level reached for {}, skipping".format(URL))
 
 # parses any other pages for paper data info
+
+
 def extract_links_others(URL, level, prof_name):
     papers_list = []
     links = set()
@@ -237,10 +247,17 @@ def extract_links_others(URL, level, prof_name):
             list_elems = soup.select("li")
             for elem in list_elems:
                 text = elem.text
-                post_paperdata_entity(text, prof_name)
-                # with open('paperdata.txt','a') as f:
-                #     f.writelines([prof_name, text])
-                papers_list.append(text)
+                # remove '(PDF)' or '(BibTex)' words
+                text = re.sub(
+                    "(?:([Pp][Dd][Ff])|([Bb][Ii][Bb][Tt][Ee][Xx]))", "", text)
+                # remove unnecessary new lines
+                text = re.sub("(?:\n|\r)+", "([NL])", text)
+                # remove unreadable characters
+                text = re.sub(r"[^\x00-\x7f]", r" ", text)
+                # append/publish only if greater than min len
+                if len(text) > constants["min_abstract_len"]:
+                    post_paperdata_entity(text, prof_name)
+                    papers_list.append(text)
 
             # select all attributes
             attrs = soup.select("a")
@@ -250,20 +267,30 @@ def extract_links_others(URL, level, prof_name):
                         href = attr["href"].lower()
                         checker = href + "||" + attr.text
                         hasKeywords = re.search(
-                            "(?:publication|research|paper|journal|project|service|link)", checker)
+                            "(?:publication|research|paper|journal|project|service|link|.pdf|robot)",
+                            checker,
+                        )
                         isFiller = re.search(
-                            "(?:google|javascript|springer|researchgate|linkedin|video|youtube|scholar|sci.asu|facebook|twitter|messenger|pinterest)", href)
+                            "(?:.bib|google|javascript|springer|researchgate|linkedin|video|youtube|scholar|sci.asu|facebook|twitter|messenger|pinterest)",
+                            href,
+                        )
                         hasHttp = re.search("http", href)
-                        isRelative = re.match(r'\\.*', href)
+                        isRelative = re.match(r"(?:\\|/|../|..\\).*", href)
                         # add more jobs to respective sites
                         if not isFiller:
                             if hasKeywords and hasHttp:
                                 publish_job(href, level, prof_name)
-                                links.add(href)
+                                links.add(attr["href"])
                             elif hasKeywords and isRelative:
-                                link = urljoin(URL, href)
+                                link = urljoin(URL, attr["href"])
                                 publish_job(link, level, prof_name)
                                 links.add(link)
+                            elif not hasHttp:
+                                link = urljoin(URL, attr["href"])
+                                content = re.search(URL_PATTERN, link)
+                                if content:
+                                    publish_job(link, level, prof_name)
+                                    links.add(link)
                 except:
                     pass
         except Exception as e:
@@ -272,39 +299,65 @@ def extract_links_others(URL, level, prof_name):
     else:
         print("Max level reached for {}, skipping".format(URL))
 
-# def extract_abstract(pdf):
-#     result = re.search('[\s\S]*Introduction', pdf[0])
-#     if result:
-#         return result[0]
-#     return ''
 
-# def parse_pdf(URL, prof_name):
-#     # page = requests.get(URL)
-#     def download_file(download_url, filename):
-#         response = urllib.request.urlopen(download_url)
-#         path = './pdfs/' + filename
-#         file = open(path, 'wb')
-#         file.write(response.read())
-#         file.close()
-#     file = URL.split('/')[-1]
-#     try:
-#         download_file(URL, file)
-#     except Exception as e:
-#         print('-'*40,'Cannot Download PDF',URL)
-#         print(e)
-#         return
-#     path = './pdfs/' + file
-#     try:
-#         with open(path, 'rb') as pdfFile:
-#             pdf = pdftotext.PDF(pdfFile)
-#             abstract = extract_abstract(pdf)
-#             post_paperdata_entity(abstract, prof_name)
-#     except Exception as f:
-#         print('--------','Processing PDF','--------')
-#         print(f)
-#     print('processed ', file)
-#     if os.path.exists(path):
-#         print('deleted file ', file)
-#         os.remove(path)
-#     else:
-#         print("The file {} does not exist".format(file))
+def extract_abstract(pdf):
+    # parse the first page only
+    result = re.search('[\s\S]*Introduction', pdf[0])
+    if result:
+        return result[0]
+    return ''
+
+
+def extract_page(file_path, pages=1):
+    from io import StringIO
+    from bs4 import BeautifulSoup
+    from tika import parser
+
+    file_data = {}
+    _buffer = StringIO()
+    data = parser.from_file(file_path, xmlContent=True)
+    xhtml_data = BeautifulSoup(data['content'])
+    for page, content in enumerate(xhtml_data.find_all('div', attrs={'class': 'page'})):
+        if page >= pages:
+            break
+        print('Parsing page {} of pdf file...'.format(page+1))
+        _buffer.write(str(content))
+        parsed_content = parser.from_buffer(_buffer.getvalue())
+        _buffer.truncate()
+        file_data[page] = parsed_content['content']
+    return file_data
+
+
+def parse_pdf(URL, prof_name):
+    def download_file(download_url, filename):
+        response = urllib.request.urlopen(download_url)
+        path = './pdfs/' + filename
+        file = open(path, 'wb')
+        file.write(response.read())
+        file.close()
+    # DOWNLOAD FILE
+    file = URL.split('/')[-1]
+    try:
+        download_file(URL, file)
+    except Exception as e:
+        print('-'*40, 'Cannot Download PDF', URL)
+        print(e)
+        return
+    # GIVE LOCAL PATH
+    path = './pdfs/' + file
+    try:
+        # try processing the pdf
+        pdf = extract_page(path)
+        abstract = extract_abstract(pdf)
+        post_paperdata_entity(abstract, prof_name)
+    except Exception as f:
+        print('--------', 'Processing PDF', '--------')
+        print(f)
+
+    print('processed ', file)
+    # delete pdf if processing done
+    if os.path.exists(path):
+        print('deleted file ', file)
+        os.remove(path)
+    else:
+        print("The file {} does not exist".format(file))
