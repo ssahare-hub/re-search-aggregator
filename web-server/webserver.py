@@ -8,7 +8,7 @@ from google.cloud.pubsub_v1 import PublisherClient, SubscriberClient
 import json
 # from google.cloud.pubsub_v1.types import FlowControl
 
-def download_blob(bucket_name, source_blob_name, destination_file_name):
+def download_blob(bucket_name, source_blob_name):
     """Downloads a blob from the bucket."""
     # bucket_name = "your-bucket-name"
     # source_blob_name = "storage-object-name"
@@ -23,13 +23,15 @@ def download_blob(bucket_name, source_blob_name, destination_file_name):
     # any content from Google Cloud Storage. As we don't need additional data,
     # using `Bucket.blob` is preferred here.
     blob = bucket.blob(source_blob_name)
-    blob.download_to_filename(destination_file_name)
+    dl = blob.download_as_string()
+    # blob.download_to_filename(destination_file_name)
 
     print(
-        "Blob {} downloaded to {}.".format(
-            source_blob_name, destination_file_name
+        "Blob was downloaded to \n {}.".format(
+            dl
         )
     )
+    return dl
 
 
 SECRET_KEY = "VERYCONFIDENTIAL"
@@ -55,9 +57,8 @@ socketio.init_app(app, cors_allowed_origins="*")
 # don't exists
 
 # UPLOAD THIS FILE ONTO YOUR CLOUD STORAGE
-download_blob(BUCKET_NAME, 'constants.json', 'constants.json')
-with open('constants.json','r') as c:
-    constants = json.load(c)
+c = download_blob(BUCKET_NAME, 'constants.json')
+constants = json.loads(c)
 
 pub_client = PublisherClient()
 sub_client = SubscriberClient()
@@ -135,5 +136,5 @@ if __name__ == '__main__':
     socketio.run(
         app         
         , host='0.0.0.0'
-        , port=8080
+        , port= os.environ.get('PORT',8080)
     )

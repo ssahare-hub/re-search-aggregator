@@ -1,9 +1,8 @@
+service: apptier
 runtime: python37
-
 entrypoint: python apptier.py
 
 network:
-  name: default
   session_affinity: true
 
 env_variables:

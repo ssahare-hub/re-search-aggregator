@@ -19,16 +19,13 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
-def download_blob(bucket_name, source_blob_name, destination_file_name):
+def download_blob(bucket_name, source_blob_name):
     storage_client = storage.Client()
     bucket = storage_client.bucket(bucket_name)
     blob = bucket.blob(source_blob_name)
-    blob.download_to_filename(destination_file_name)
-    print(
-        "Blob {} downloaded to {}.".format(
-            source_blob_name, destination_file_name
-        )
-    )
+    dl = blob.download_as_string()
+    print("download blob", dl)
+    return dl
 
 
 # CHANGE THESE VALUES ACCORDING TO YOUR APP ENGINE ACCOUNT
@@ -41,12 +38,8 @@ URL_PATTERN = (
 )
 
 # UPLOAD THIS FILE ONTO YOUR CLOUD STORAGE
-download_blob(BUCKET_NAME, 'constants.json', 'constants.json')
-
-with open('constants.json', 'r') as c:
-    print('-'*100)
-    constants = json.load(c)
-
+c = download_blob(BUCKET_NAME, 'constants.json')
+constants = json.loads(c)
 
 ds_client = Client()
 
@@ -122,7 +115,7 @@ def post_paperdata_entity(abstract, prof_name):
     entry = '{},{}\n'.format(prof_name, abstract)
     papers.add(entry)
     if len(papers) % 500 == 0:
-        with open('./texts/papers_collected.txt', 'w') as f:
+        with open('/tmp/texts/papers_collected.txt', 'w') as f:
             f.writelines(list(papers))
     ds_client.put(entity)
 
@@ -351,7 +344,7 @@ def parse_pdf(URL, prof_name):
     def download_file(download_url, filename):
         response = urllib.request.urlopen(download_url)
         # TODO: DO mkdir and create directory
-        path = './pdfs/' + filename
+        path = '/tmp/pdfs/' + filename
         file = open(path, 'wb')
         file.write(response.read())
         file.close()
@@ -377,7 +370,7 @@ def parse_pdf(URL, prof_name):
         # remove unreadable characters
         abstract = re.sub(r"[^\x00-\x7f]", r" ", abstract)
         abstracts.add('{}\n'.format(abstract))
-        with open('./texts/abstract.txt', 'w') as f:
+        with open('/tmp/texts/abstract.txt', 'w') as f:
             f.writelines(list(abstracts))
 
     except Exception as f:

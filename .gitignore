@@ -6,3 +6,4 @@
 *.csv
 sort_links.py
 */texts/
+*.metals/

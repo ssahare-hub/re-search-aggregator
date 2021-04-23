@@ -12,7 +12,7 @@ import redis
 import getopt
 
 
-def download_blob(bucket_name, source_blob_name, destination_file_name):
+def download_blob(bucket_name, source_blob_name):
     """Downloads a blob from the bucket."""
     # bucket_name = "your-bucket-name"
     # source_blob_name = "storage-object-name"
@@ -27,13 +27,10 @@ def download_blob(bucket_name, source_blob_name, destination_file_name):
     # any content from Google Cloud Storage. As we don't need additional data,
     # using `Bucket.blob` is preferred here.
     blob = bucket.blob(source_blob_name)
-    blob.download_to_filename(destination_file_name)
-
-    print(
-        "Blob {} downloaded to {}.".format(
-            source_blob_name, destination_file_name
-        )
-    )
+    # blob.download_to_filename(destination_file_name)
+    dl = blob.download_as_string()
+    print("download blob", dl)
+    return dl
 
 # CHANGE THESE VALUES ACCORDING TO YOUR APP ENGINE ACCOUNT
 # Or pass an environment variable thorught the start__ script
@@ -41,11 +38,10 @@ BUCKET_NAME = os.environ.get(
     "BUCKET_NAME", "staging.sss-cc-gae-310003.appspot.com")
 PROJECT_ID = os.environ.get("PROJECT_ID", "sss-cc-gae-310003")
 request_count = 0
-
+1
 # UPLOAD THIS FILE ONTO YOUR CLOUD STORAGE
-download_blob(BUCKET_NAME, 'constants.json', 'constants.json')
-with open('constants.json', 'r') as c:
-    constants = json.load(c)
+download_blob(BUCKET_NAME, 'constants.json')
+constants = json.loads(c)
 
 pub_client = PublisherClient()
 top_path = pub_client.topic_path(PROJECT_ID, constants["output-topic"])
