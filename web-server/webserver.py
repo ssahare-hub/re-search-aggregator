@@ -35,8 +35,11 @@ def download_blob(bucket_name, source_blob_name, destination_file_name):
 SECRET_KEY = "VERYCONFIDENTIAL"
 UPLOAD_FOLDER = "/uploads/"
 # CHANGE THESE VALUES ACCORDING TO YOUR APP ENGINE ACCOUNT
-BUCKET_NAME = "staging.sss-cc-gae-310003.appspot.com"
-PROJECT_ID = "sss-cc-gae-310003"
+
+BUCKET_NAME = os.environ.get(
+    "BUCKET_NAME", "staging.sss-cc-gae-310003.appspot.com")
+PROJECT_ID = os.environ.get("PROJECT_ID", "sss-cc-gae-310003")
+
 # host flask server
 app = Flask(__name__)
 app.config['SECRET_KEY'] = SECRET_KEY
@@ -132,6 +135,5 @@ if __name__ == '__main__':
     socketio.run(
         app         
         , host='0.0.0.0'
-        , port=5000
-        
+        , port=8080
     )

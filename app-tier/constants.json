@@ -5,6 +5,9 @@
     "output-topic":"output_topic",
     "result-sub":"result-sub",
 
+    "nlp-topic":"nlp_topic",
+    "nlp-sub":"nlp_sub",
+
     "faculty":"faculty",
     "profile":"profile",
     "lab":"lab",

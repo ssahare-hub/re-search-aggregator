@@ -1,3 +1,4 @@
+import redis
 import requests
 import os
 from pprint import pprint
@@ -13,9 +14,7 @@ from google.cloud.datastore import Client, Entity
 import urllib
 import traceback
 import pandas as pd
-
 from tika import parser
-
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -41,21 +40,31 @@ URL_PATTERN = (
     + "{2,6}\\b([-a-zA-Z0-9@:%._\\+~#?&//=]*)"
 )
 
-
 # UPLOAD THIS FILE ONTO YOUR CLOUD STORAGE
 download_blob(BUCKET_NAME, 'constants.json', 'constants.json')
+
 with open('constants.json', 'r') as c:
+    print('-'*100)
     constants = json.load(c)
+
 
 ds_client = Client()
 
 pub_client = PublisherClient()
 top_path = pub_client.topic_path(PROJECT_ID, constants["job-topic"])
 
+redis_host = os.environ.get('REDISHOST', 'localhost')
+redis_port = os.environ.get('REDISPORT', '6379')
+redis_client = redis.Redis(host=redis_host, port=redis_port)
+# print('flushing all messages from redis')
+redis_client.set('messages_sent', 0)
+print('set redis message sent count')
+
 
 def publish_working_topic(data_obj):
     data_str = json.dumps(data_obj)
     data = data_str.encode("UTF-8")
+    redis_client.incr('messages_sent')
     try:
         future = pub_client.publish(top_path, data)
         job_id = future.result()
@@ -94,9 +103,15 @@ def publish_job(URL, level, prof_name):
 # post the entity to datastore
 
 
+papers = set()
+
+
 def post_paperdata_entity(abstract, prof_name):
     if len(abstract) >= constants["min_abstract_len"]:
+        # substitute new lines with special seperator
         abstract = re.sub('(?:\n|\r)+', '([NL])', abstract)
+        # remove unreadable characters
+        abstract = re.sub(r"[^\x00-\x7f]", r" ", abstract)
     else:
         return
     eid = str(uuid.uuid4())
@@ -104,9 +119,12 @@ def post_paperdata_entity(abstract, prof_name):
     entity = Entity(key=key, exclude_from_indexes=('abstract',))
     entity['abstract'] = abstract
     entity['professor'] = prof_name
-    with open('papers_collected.txt', 'a') as f:
-        f.writelines([prof_name+','+abstract+'\n'])
-    # ds_client.put(entity)
+    entry = '{},{}\n'.format(prof_name, abstract)
+    papers.add(entry)
+    if len(papers) % 500 == 0:
+        with open('./texts/papers_collected.txt', 'w') as f:
+            f.writelines(list(papers))
+    ds_client.put(entity)
 
 
 # post the entity to datastore
@@ -116,7 +134,7 @@ def post_professorinfo_entity(prof_obj):
     entity = Entity(key=key, exclude_from_indexes=('links',))
     for key in prof_obj.keys():
         entity[key] = prof_obj[key]
-    # ds_client.put(entity)
+    ds_client.put(entity)
 
 
 # Parses the faculty page for the link given
@@ -143,7 +161,6 @@ def parse_faculty_page(URL, level, prof_name):
             isEmail = re.search("@", name.text)
             if isEmail:
                 prof_obj["email"] = name.text
-                prof_name = name.text if "name" not in prof_obj else prof_obj["name"]
             else:
                 isResearchWebsite = re.search("website", name.text.lower())
                 if not isResearchWebsite:
@@ -319,7 +336,7 @@ def extract_page(file_path, pages=1):
     for page, content in enumerate(xhtml_data.find_all('div', attrs={'class': 'page'})):
         if page >= pages:
             break
-        print('Parsing page {} of pdf file...'.format(page+1))
+        # print('Parsing page {} of pdf file...'.format(page+1))
         _buffer.write(str(content))
         parsed_content = parser.from_buffer(_buffer.getvalue())
         _buffer.truncate()
@@ -327,9 +344,13 @@ def extract_page(file_path, pages=1):
     return file_data
 
 
+abstracts = set()
+
+
 def parse_pdf(URL, prof_name):
     def download_file(download_url, filename):
         response = urllib.request.urlopen(download_url)
+        # TODO: DO mkdir and create directory
         path = './pdfs/' + filename
         file = open(path, 'wb')
         file.write(response.read())
@@ -349,14 +370,24 @@ def parse_pdf(URL, prof_name):
         pdf = extract_page(path)
         abstract = extract_abstract(pdf)
         post_paperdata_entity(abstract, prof_name)
+
+        # TODO: Remove, only for testing
+        # substitute new lines with special seperator
+        abstract = re.sub('(?:\n|\r)+', '([NL])', abstract)
+        # remove unreadable characters
+        abstract = re.sub(r"[^\x00-\x7f]", r" ", abstract)
+        abstracts.add('{}\n'.format(abstract))
+        with open('./texts/abstract.txt', 'w') as f:
+            f.writelines(list(abstracts))
+
     except Exception as f:
         print('--------', 'Processing PDF', '--------')
         print(f)
 
-    print('processed ', file)
+    # print('processed ', file)
     # delete pdf if processing done
     if os.path.exists(path):
-        print('deleted file ', file)
+        # print('deleted file ', file)
         os.remove(path)
     else:
         print("The file {} does not exist".format(file))
