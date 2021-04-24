@@ -1,3 +1,4 @@
+import redis
 import requests
 import os
 from pprint import pprint
@@ -13,17 +14,13 @@ from google.cloud import storage
 from google.cloud.datastore import Client, Entity
 import urllib
 import traceback
-
+import pandas as pd
+from tika import parser
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
-def download_blob(bucket_name, source_blob_name, destination_file_name):
-    """Downloads a blob from the bucket."""
-    # bucket_name = "your-bucket-name"
-    # source_blob_name = "storage-object-name"
-    # destination_file_name = "local/path/to/file"
-
+def download_blob(bucket_name, source_blob_name):
     storage_client = storage.Client()
 
     bucket = storage_client.bucket(bucket_name)
@@ -33,33 +30,35 @@ def download_blob(bucket_name, source_blob_name, destination_file_name):
     # any content from Google Cloud Storage. As we don't need additional data,
     # using `Bucket.blob` is preferred here.
     blob = bucket.blob(source_blob_name)
-    blob.download_to_filename(destination_file_name)
-
-    print(
-        "Blob {} downloaded to {}.".format(
-            source_blob_name, destination_file_name
-        )
-    )
+    dl = blob.download_as_string()
+    print("download blob", dl)
+    return dl
 
 
 BUCKET_NAME = "cc-test-309723.appspot.com"
 PROJECT_ID = "cc-test-309723"
 
-
-download_blob(BUCKET_NAME, 'constants.json', 'constants.json')
-with open('constants.json', 'r') as c:
-    constants = json.load(c)
+# UPLOAD THIS FILE ONTO YOUR CLOUD STORAGE
+c = download_blob(BUCKET_NAME, 'constants.json')
+constants = json.loads(c)
 
 ds_client = Client()
 
 pub_client = PublisherClient()
 top_path = pub_client.topic_path(PROJECT_ID, constants["job-topic"])
 
+redis_host = os.environ.get('REDISHOST', 'localhost')
+redis_port = os.environ.get('REDISPORT', '6379')
+redis_client = redis.Redis(host=redis_host, port=redis_port)
+# print('flushing all messages from redis')
+redis_client.set('messages_sent', 0)
+print('set redis message sent count')
+
 
 def publish_working_topic(data_obj):
     data_str = json.dumps(data_obj)
     data = data_str.encode("UTF-8")
-    # TODO: post message in topic
+    redis_client.incr('messages_sent')
     try:
         future = pub_client.publish(top_path, data)
         job_id = future.result()
@@ -95,10 +94,15 @@ def post_link_job(URL, level, prof_name):
     publish_working_topic(data_obj)
 
 
+papers = set()
+
+
 def post_paperdata_entity(abstract, prof_name):
     if len(abstract) >= constants["min_abstract_len"]:
-        abstract = abstract.replace('\n',' ')
-        abstract = abstract.replace('\r',' ')
+        # substitute new lines with special seperator
+        abstract = re.sub('(?:\n|\r)+', '([NL])', abstract)
+        # remove unreadable characters
+        abstract = re.sub(r"[^\x00-\x7f]", r" ", abstract)
     else:
         return
     eid = str(uuid.uuid4())
@@ -106,10 +110,12 @@ def post_paperdata_entity(abstract, prof_name):
     entity = Entity(key=key, exclude_from_indexes=('abstract',))
     entity['abstract'] = abstract
     entity['professor'] = prof_name
-    with open('paperdata.txt','a') as f:
-        f.writelines([json.dumps(entity)])
-
-    # ds_client.put(entity)
+    entry = '{},{}\n'.format(prof_name, abstract)
+    papers.add(entry)
+    if len(papers) % 500 == 0:
+        with open('/tmp/texts/papers_collected.txt', 'w') as f:
+            f.writelines(list(papers))
+    ds_client.put(entity)
 
 
 def post_professorinfo_entity(prof_obj):
@@ -118,7 +124,7 @@ def post_professorinfo_entity(prof_obj):
     entity = Entity(key=key, exclude_from_indexes=('links',))
     for key in prof_obj.keys():
         entity[key] = prof_obj[key]
-    # ds_client.put(entity)
+    ds_client.put(entity)
 
 
 def work_on_jobs(URL, level, prof_name):
@@ -144,7 +150,6 @@ def work_on_jobs(URL, level, prof_name):
             isEmail = re.search("@", name.text)
             if isEmail:
                 prof_obj["email"] = name.text
-                prof_name = name.text if "name" not in prof_obj else prof_obj["name"]
             else:
                 isResearchWebsite = re.search("website", name.text.lower())
                 if not isResearchWebsite:
@@ -293,11 +298,36 @@ def extract_abstract(pdf):
         return result[0]
     return ''
 
+
+def extract_page(file_path, pages=1):
+    from io import StringIO
+    from bs4 import BeautifulSoup
+    from tika import parser
+
+    file_data = {}
+    _buffer = StringIO()
+    data = parser.from_file(file_path, xmlContent=True)
+    xhtml_data = BeautifulSoup(data['content'])
+    for page, content in enumerate(xhtml_data.find_all('div', attrs={'class': 'page'})):
+        if page >= pages:
+            break
+        # print('Parsing page {} of pdf file...'.format(page+1))
+        _buffer.write(str(content))
+        parsed_content = parser.from_buffer(_buffer.getvalue())
+        _buffer.truncate()
+        file_data[page] = parsed_content['content']
+    return file_data
+
+
+abstracts = set()
+
+
 def parse_pdf(URL, prof_name):
     # page = requests.get(URL)
     def download_file(download_url, filename):
         response = urllib.request.urlopen(download_url)
-        path = './pdfs/' + filename
+        # TODO: DO mkdir and create directory
+        path = '/tmp/pdfs/' + filename
         file = open(path, 'wb')
         file.write(response.read())
         file.close()
@@ -310,16 +340,28 @@ def parse_pdf(URL, prof_name):
         return
     path = './pdfs/' + file
     try:
-        with open(path, 'rb') as pdfFile:
-            pdf = pdftotext.PDF(pdfFile)
-            abstract = extract_abstract(pdf)
-            post_paperdata_entity(abstract, prof_name)
+        # try processing the pdf
+        pdf = extract_page(path)
+        abstract = extract_abstract(pdf)
+        post_paperdata_entity(abstract, prof_name)
+
+        # TODO: Remove, only for testing
+        # substitute new lines with special seperator
+        abstract = re.sub('(?:\n|\r)+', '([NL])', abstract)
+        # remove unreadable characters
+        abstract = re.sub(r"[^\x00-\x7f]", r" ", abstract)
+        abstracts.add('{}\n'.format(abstract))
+        with open('/tmp/texts/abstract.txt', 'w') as f:
+            f.writelines(list(abstracts))
+
     except Exception as f:
         print('--------','Processing PDF','--------')
         print(f)
-    print('processed ', file)
+
+    # print('processed ', file)
+    # delete pdf if processing done
     if os.path.exists(path):
-        print('deleted file ', file)
+        # print('deleted file ', file)
         os.remove(path)
     else:
         print("The file {} does not exist".format(file))

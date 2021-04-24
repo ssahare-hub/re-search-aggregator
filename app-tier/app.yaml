@@ -1,0 +1,24 @@
+service: apptier
+runtime: python37
+entrypoint: python apptier.py
+
+network:
+  session_affinity: true
+
+env_variables:
+  PORT: 8080
+  BUCKET_NAME: "cc-test-309723.appspot.com"
+  PROJECT_ID: "cc-test-309723"
+  REDIS_HOST: "10.4.47.51"
+  REDIS_PORT: 6379
+
+inbound_services:
+- warmup
+
+automatic_scaling:
+  target_cpu_utilization: 0.5
+  min_instances: 1
+  max_instances: 2
+  min_pending_latency: 30ms
+  max_pending_latency: automatic
+  max_concurrent_requests: 50

@@ -1,7 +1,10 @@
 ## **RE Search Aggregator**
 ### This application will provide an unified portal to prospective and current students to view which colleges and professors work under their choice of research field.
 #### Version - 0.1
-#### Instructions to run:
+#### Pre-requisites:
+1. Install Docker Desktop on your OS, setup and then run this -> 
+   - docker run -d -p 6379:6379 --name local-redis redis
+#### Instructions to run app:
 1. Create a **Google App Engine** account
 2. Create a **new project** and update the `PROJECT` variable in *web-server/app.py* and *app-tier/app-tier.py*
 3. Setup [Google cloud sdk](https://cloud.google.com/sdk/docs/quickstart) on your local machine and login 
