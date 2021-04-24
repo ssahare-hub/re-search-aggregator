@@ -80,27 +80,35 @@ def process_job(pay_load):
     # to prevent processing of same links
     job_id = data["JobId"]
 
+    # lists all memebrs of the set with name 'job_id'
     members = redis_client.smembers(job_id)
-    
 
-    if redis_client.get(message):
-        print('already parsed', message)
-        pay_load.ack()
-        return
+    # if empty
+    if len(members) == 0:
+        redis_client.sadd(job_id, message)
+    # if not empty
     else:
-        redis_client.set(message, 'Parsed')
+        # if message is a member of job_id
+        # we acknowledge the message and skip processing
+        if redis_client.sismember(job_id, message):
+            print('already parsed', message)
+            pay_load.ack()
+            return
+        # else add to set and process
+        else:
+            redis_client.sadd(job_id, message)
 
     prof_obs = []
     links = []
     threads = []
     if data["Type"] == constants["faculty"]:
-        parse_faculty_page(message, data["Level"], data["Meta"])
+        parse_faculty_page(message, data)
     elif data["Type"] == constants["profile"]:
-        extract_links_isearch(message, data["Level"], data["Meta"])
+        extract_links_isearch(message, data)
     elif data["Type"] == constants["pdf"]:
-        parse_pdf(message, data["Meta"])
+        parse_pdf(message, data)
     else:
-        extract_links_others(message, data["Level"], data["Meta"])
+        extract_links_others(message, data)
     pay_load.ack()
 
 
