@@ -79,20 +79,22 @@ def home_page():
         # request_data = request.get_json()
         print('received data from POST', website)
         if website:
+            job_id = string(uuid.uuid4())
             data_obj = {
                 "URL" : website,
                 "Type" : constants["faculty"],
                 "Level" : 0,
-                "Meta": ""
+                "Meta": "",
+                "JobId": job_id
             }
             data_str = json.dumps(data_obj)
             data = data_str.encode("UTF-8")
             # TODO: post message in topic
             try:
                 future = pub_client.publish(top_path, data)
-                job_id = future.result()
+                future.result()
             except:
-                job_id = "CANNOT_PUBLISH_TO_TOPIC"
+                print("CANNOT_PUBLISH_TO_TOPIC")
         
     # get / render front end page
     return render_template(
