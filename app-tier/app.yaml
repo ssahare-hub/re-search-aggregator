@@ -1,5 +1,8 @@
 runtime: python37
+service: app-tier
 entrypoint: python apptier.py
+vpc_access_connector:
+  name: projects/cc-test-309723/locations/us-west2/connectors/sai-cc-connector
 
 network:
   session_affinity: true
