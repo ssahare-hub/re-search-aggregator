@@ -76,6 +76,11 @@ def process_job(pay_load):
     message = data["URL"]
     redis_client.incr('messages_received')
     # to prevent processing of same links
+    job_id = data["JobId"]
+
+    members = redis_client.smembers(job_id)
+    
+
     if redis_client.get(message):
         print('already parsed', message)
         pay_load.ack()
