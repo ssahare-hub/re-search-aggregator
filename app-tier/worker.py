@@ -99,6 +99,9 @@ def publish_job(URL, level, prof_name):
 papers = set()
 
 
+papers = set()
+
+
 def post_paperdata_entity(abstract, prof_name):
     if len(abstract) >= constants["min_abstract_len"]:
         # substitute new lines with special seperator
