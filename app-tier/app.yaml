@@ -4,7 +4,7 @@ entrypoint: python apptier.py
 vpc_access_connector:
   name: projects/cc-test-309723/locations/us-west2/connectors/sai-cc-connector
 
-instance_class: F2
+instance_class: F1
 
 network:
   session_affinity: true
