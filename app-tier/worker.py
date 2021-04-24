@@ -46,8 +46,10 @@ ds_client = Client()
 pub_client = PublisherClient()
 top_path = pub_client.topic_path(PROJECT_ID, constants["job-topic"])
 
-redis_host = os.environ.get('REDISHOST', 'localhost')
-redis_port = os.environ.get('REDISPORT', '6379')
+redis_host = os.environ.get('REDIS_HOST', 'localhost')
+redis_port = os.environ.get('REDIS_PORT', '6379')
+
+print (redis_host,redis_port, os.environ['REDIS_HOST'])
 redis_client = redis.Redis(host=redis_host, port=redis_port)
 # print('flushing all messages from redis')
 redis_client.set('messages_sent', 0)
