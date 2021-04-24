@@ -79,7 +79,7 @@ def home_page():
         # request_data = request.get_json()
         print('received data from POST', website)
         if website:
-            job_id = string(uuid.uuid4())
+            job_id = str(uuid.uuid4())
             data_obj = {
                 "URL" : website,
                 "Type" : constants["faculty"],

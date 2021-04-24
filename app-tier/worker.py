@@ -133,7 +133,7 @@ def post_professorinfo_entity(prof_obj):
     ds_client.put(entity)
 
 
-def work_on_jobs(URL, data):
+def parse_faculty_page(URL, data):
     level = data["Level"]
     prof_name = data["Meta"]
     jobid = data["JobId"]
