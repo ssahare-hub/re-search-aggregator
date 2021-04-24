@@ -68,14 +68,10 @@ def publish_working_topic(data_obj):
         job_id = "CANNOT_PUBLISH_TO_TOPIC"
 
 
-def create_link_job(URL, level, prof_name):
+def create_link_job(URL, data):
     # classify as profile/lab/pdf/others
-    data = {
-        "URL": URL,
-        "Level": level,
-        "Type": "",
-        "Meta": prof_name
-    }
+    data["URL"] = URL
+    data["Type"] = ""
     URL = URL.lower()
     isProfile = re.search('(?:people|isearch)', URL)
     isLab = re.search('lab', URL)
@@ -91,8 +87,11 @@ def create_link_job(URL, level, prof_name):
     return data
 
 
-def post_link_job(URL, level, prof_name):
-    data_obj = create_link_job(URL, level, prof_name)
+def post_link_job(URL, data):
+    level = data["Level"]
+    prof_name = data["Meta"]
+    jobid = data["JobId"]
+    data_obj = create_link_job(URL, data)
     publish_working_topic(data_obj)
 
 
@@ -129,7 +128,10 @@ def post_professorinfo_entity(prof_obj):
     ds_client.put(entity)
 
 
-def work_on_jobs(URL, level, prof_name):
+def work_on_jobs(URL, data):
+    level = data["Level"]
+    prof_name = data["Meta"]
+    jobid = data["JobId"]
     # link to faculty page
     page = requests.get(URL, verify=False)
     soup = BeautifulSoup(page.content, "html.parser")
@@ -163,7 +165,7 @@ def work_on_jobs(URL, level, prof_name):
                 isLink = re.search("http", href)
                 if isLink:
                     # TODO: add if check for prof["name"]
-                    post_link_job(href, level, prof_name)
+                    post_link_job(href, data)
                     links.add(href)
                     if "links" in prof_obj:
                         prof_obj["links"].add(href)
@@ -176,7 +178,10 @@ def work_on_jobs(URL, level, prof_name):
         post_professorinfo_entity(prof_obj)
 
 
-def extract_links_isearch(URL, level, prof_name):
+def extract_links_isearch(URL, data):
+    level = data["Level"]
+    prof_name = data["Meta"]
+    jobid = data["JobId"]
     lines = []
     papers_list = []
     links = set()
@@ -227,7 +232,7 @@ def extract_links_isearch(URL, level, prof_name):
                 hasHttp = re.search("http", href)
                 if not (isPerson or isFile or isFiller)  and hasHttp:
                     # and isResearch
-                    post_link_job(href, level, prof_name)
+                    post_link_job(href, data)
                     links.add(href)
             # with open('links.txt','a') as l:
             #     l.write('\n')
@@ -240,7 +245,10 @@ def extract_links_isearch(URL, level, prof_name):
     else:
         print("Max level reached for {}, skipping".format(URL))
 
-def extract_links_others(URL, level, prof_name):
+def extract_links_others(URL, data):
+    level = data["Level"]
+    prof_name = data["Meta"]
+    jobid = data["JobId"]
     papers_list = []
     links = set()
     lines = []
@@ -276,11 +284,11 @@ def extract_links_others(URL, level, prof_name):
                         # add more jobs to respective sites
                         if not isFiller:
                             if hasKeywords and hasHttp:
-                                post_link_job(href, level, prof_name)
+                                post_link_job(href, data)
                                 links.add(href)
                             elif hasKeywords and isRelative:
                                 link = urljoin(URL, href)
-                                post_link_job(link, level, prof_name)
+                                post_link_job(link, data)
                                 links.add(link)    
                 except :
                     pass
@@ -324,7 +332,10 @@ def extract_page(file_path, pages=1):
 abstracts = set()
 
 
-def parse_pdf(URL, prof_name):
+def parse_pdf(URL, data):
+    level = data["Level"]
+    prof_name = data["Meta"]
+    jobid = data["JobId"]
     # page = requests.get(URL)
     def download_file(download_url, filename):
         response = urllib.request.urlopen(download_url)
