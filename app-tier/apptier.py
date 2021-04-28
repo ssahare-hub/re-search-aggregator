@@ -56,7 +56,6 @@ flow_control = FlowControl(max_messages=50)
 
 redis_host = os.environ.get('REDIS_HOST', 'localhost')
 redis_port = os.environ.get('REDIS_PORT', '6379')
-print (redis_host,redis_port, os.environ['REDIS_HOST'])
 redis_client = redis.Redis(host=redis_host, port=redis_port)
 redis_client.set('messages_received', 0)
 
@@ -78,7 +77,6 @@ def process_job(pay_load):
     message = data["URL"]
     value = redis_client.incr('messages_received')
     # to prevent processing of same links
-    job_id = data["JobId"]
     # TEST PURPOSES ONLY
     eid = '2'
     key = ds_client.key('Messages',eid)
@@ -87,6 +85,7 @@ def process_job(pay_load):
     entity['value'] = value
     ds_client.put(entity)
 
+    job_id = data["JobId"]
     # lists all memebrs of the set with name 'job_id'
     members = redis_client.smembers(job_id)
 
