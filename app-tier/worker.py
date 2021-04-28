@@ -55,8 +55,33 @@ redis_client = redis.Redis(host=redis_host, port=redis_port)
 redis_client.set('messages_sent', 0)
 print('set redis message sent count')
 
-
 def publish_working_topic(data_obj):
+    data_str = json.dumps(data_obj)
+    data = data_str.encode("UTF-8")
+    value = redis_client.incr('messages_sent')
+    # TEST PURPOSES ONLY
+    eid = '1'
+    key = ds_client.key('Messages',eid)
+    entity = Entity(key=key, exclude_from_indexes=('description',))
+    entity['description'] = "message_sent"
+    entity['value'] = value
+    ds_client.put(entity)
+
+def process_job(pay_load):
+    data_str = pay_load.data.decode("UTF-8")
+    data = json.loads(data_str)
+    message = data["URL"]
+    value = redis_client.incr('messages_received')
+    # TEST PURPOSES ONLY
+    eid = '2'
+    key = ds_client.key('Messages',eid)
+    entity = Entity(key=key, exclude_from_indexes=('description',))
+    entity['description'] = "message_receieved"
+    entity['value'] = value
+    ds_client.put(entity)
+
+    
+# def publish_working_topic(data_obj):
     data_str = json.dumps(data_obj)
     data = data_str.encode("UTF-8")
     redis_client.incr('messages_sent')
