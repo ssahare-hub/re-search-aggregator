@@ -41,7 +41,6 @@ UPLOAD_FOLDER = "/uploads/"
 BUCKET_NAME = os.environ.get(
     "BUCKET_NAME", "staging.sss-cc-gae-310003.appspot.com")
 PROJECT_ID = os.environ.get("PROJECT_ID", "sss-cc-gae-310003")
-
 # host flask server
 app = Flask(__name__)
 app.config['SECRET_KEY'] = SECRET_KEY

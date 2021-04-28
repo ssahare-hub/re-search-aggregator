@@ -66,14 +66,6 @@ def publish_working_topic(data_obj):
     entity['description'] = "message_sent"
     entity['value'] = value
     ds_client.put(entity)
-
-
-
-
-# def publish_working_topic(data_obj):
-    data_str = json.dumps(data_obj)
-    data = data_str.encode("UTF-8")
-    redis_client.incr('messages_sent')
     try:
         future = pub_client.publish(top_path, data)
         job_id = future.result()
@@ -131,9 +123,9 @@ def post_paperdata_entity(abstract, prof_name):
     entity['professor'] = prof_name
     entry = '{},{}\n'.format(prof_name, abstract)
     papers.add(entry)
-    if len(papers) % 500 == 0:
-        with open('/tmp/texts/papers_collected.txt', 'w') as f:
-            f.writelines(list(papers))
+    # if len(papers) % 500 == 0:
+    #     with open('/tmp/texts/papers_collected.txt', 'w') as f:
+    #         f.writelines(list(papers))
     ds_client.put(entity)
 
 
@@ -397,8 +389,8 @@ def parse_pdf(URL, data):
         # remove unreadable characters
         abstract = re.sub(r"[^\x00-\x7f]", r" ", abstract)
         abstracts.add('{}\n'.format(abstract))
-        with open('/tmp/texts/abstract.txt', 'w') as f:
-            f.writelines(list(abstracts))
+        # with open('/tmp/texts/abstract.txt', 'w') as f:
+        #     f.writelines(list(abstracts))
 
     except Exception as f:
         print('--------', 'Processing PDF', '--------')
