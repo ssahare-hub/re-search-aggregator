@@ -67,20 +67,9 @@ def publish_working_topic(data_obj):
     entity['value'] = value
     ds_client.put(entity)
 
-def process_job(pay_load):
-    data_str = pay_load.data.decode("UTF-8")
-    data = json.loads(data_str)
-    message = data["URL"]
-    value = redis_client.incr('messages_received')
-    # TEST PURPOSES ONLY
-    eid = '2'
-    key = ds_client.key('Messages',eid)
-    entity = Entity(key=key, exclude_from_indexes=('description',))
-    entity['description'] = "message_receieved"
-    entity['value'] = value
-    ds_client.put(entity)
 
-    
+
+
 # def publish_working_topic(data_obj):
     data_str = json.dumps(data_obj)
     data = data_str.encode("UTF-8")
