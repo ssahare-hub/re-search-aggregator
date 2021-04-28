@@ -49,16 +49,14 @@ top_path = pub_client.topic_path(PROJECT_ID, constants["job-topic"])
 redis_host = os.environ.get('REDIS_HOST', 'localhost')
 redis_port = os.environ.get('REDIS_PORT', '6379')
 
-print (redis_host,redis_port, os.environ['REDIS_HOST'])
 redis_client = redis.Redis(host=redis_host, port=redis_port)
-# print('flushing all messages from redis')
-redis_client.set('messages_sent', 0)
+
 print('set redis message sent count')
 
 def publish_working_topic(data_obj):
     data_str = json.dumps(data_obj)
     data = data_str.encode("UTF-8")
-    value = redis_client.incr('messages_sent')
+    value = redis_client.incr('{}_messages_sent'.format(data_obj["JobId"]))
     # TEST PURPOSES ONLY
     eid = '1'
     key = ds_client.key('Messages',eid)
@@ -105,7 +103,25 @@ def post_link_job(URL, data):
     prof_name = data["Meta"]
     jobid = data["JobId"]
     data_obj = create_link_job(URL, data)
-    publish_working_topic(data_obj)
+    if check_link_redis(data_obj):
+        publish_working_topic(data_obj)
+    else:
+        value = redis_client.incr('{}_messages_avoided'.format(data["JobId"]))
+        # TEST PURPOSES ONLY
+        eid = '3'
+        key = ds_client.key('Messages',eid)
+        entity = Entity(key=key, exclude_from_indexes=('description',))
+        entity['description'] = "message_avoided"
+        entity['value'] = value
+        ds_client.put(entity)
+        print("Skipping adding job, already processed")
+
+def check_link_redis(data):
+    # skip processing this link
+    # as it is already processed before
+    job_id = data["JobId"]
+    message = data["URL"]
+    return not redis_client.sismember(job_id, message) 
 
 # post the entity to datastore
 
@@ -131,10 +147,10 @@ def post_paperdata_entity(abstract, prof_name):
     entity['professor'] = prof_name
     entry = '{},{}\n'.format(prof_name, abstract)
     papers.add(entry)
-    if len(papers) % 500 == 0:
-        with open('/tmp/texts/papers_collected.txt', 'w') as f:
-            f.writelines(list(papers))
-    ds_client.put(entity)
+    # if len(papers) % 500 == 0:
+    #     with open('/tmp/texts/papers_collected.txt', 'w') as f:
+    #         f.writelines(list(papers))
+    # ds_client.put(entity)
 
 
 # post the entity to datastore
@@ -144,7 +160,7 @@ def post_professorinfo_entity(prof_obj):
     entity = Entity(key=key, exclude_from_indexes=('links',))
     for key in prof_obj.keys():
         entity[key] = prof_obj[key]
-    ds_client.put(entity)
+    # ds_client.put(entity)
 
 
 def parse_faculty_page(URL, data):
