@@ -76,7 +76,7 @@ def process_job(pay_load):
     data_str = pay_load.data.decode("UTF-8")
     data = json.loads(data_str)
     message = data["URL"]
-    redis_client.incr('messages_received')
+    value = redis_client.incr('messages_received')
     # to prevent processing of same links
     job_id = data["JobId"]
     # TEST PURPOSES ONLY
