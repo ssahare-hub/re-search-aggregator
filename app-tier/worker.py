@@ -95,7 +95,7 @@ def post_link_job(URL, data):
     prof_name = data["Meta"]
     jobid = data["JobId"]
     data_obj = create_link_job(URL, data)
-    if check_link_redis(data_obj):
+    if is_link_not_in_cache(data_obj):
         publish_working_topic(data_obj)
     else:
         value = redis_client.incr('{}_messages_avoided'.format(data["JobId"]))
@@ -106,9 +106,8 @@ def post_link_job(URL, data):
         entity['description'] = "message_avoided"
         entity['value'] = value
         ds_client.put(entity)
-        print("Skipping adding job, already processed")
 
-def check_link_redis(data):
+def is_link_not_in_cache(data):
     # skip processing this link
     # as it is already processed before
     job_id = data["JobId"]
@@ -117,13 +116,7 @@ def check_link_redis(data):
 
 # post the entity to datastore
 
-
 papers = set()
-
-
-papers = set()
-
-
 def post_paperdata_entity(abstract, prof_name):
     if len(abstract) >= constants["min_abstract_len"]:
         # substitute new lines with special seperator
