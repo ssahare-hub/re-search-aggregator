@@ -11,7 +11,7 @@
     "pdf":"pdf",
     "others":"others",
 
-    "max_level":4,
+    "max_level":3,
     "min_abstract_len":50
     
 }
