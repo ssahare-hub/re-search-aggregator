@@ -77,6 +77,13 @@ def process_job(pay_load):
     redis_client.incr('messages_received')
     # to prevent processing of same links
     job_id = data["JobId"]
+    # TEST PURPOSES ONLY
+    eid = '2'
+    key = ds_client.key('Messages',eid)
+    entity = Entity(key=key, exclude_from_indexes=('description',))
+    entity['description'] = "message_receieved"
+    entity['value'] = value
+    ds_client.put(entity)
 
     # lists all memebrs of the set with name 'job_id'
     members = redis_client.smembers(job_id)
@@ -120,3 +127,6 @@ try:
 except:
     print('some error while subscribing to {}'.format(sub_path))
     sub_future.cancel()
+
+    
+    
