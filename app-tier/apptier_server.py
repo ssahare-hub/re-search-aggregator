@@ -1,3 +1,4 @@
+import logging
 import uuid
 import os
 from flask import Flask, request
@@ -43,16 +44,9 @@ UPLOAD_FOLDER = "/uploads/"
 BUCKET_NAME = os.environ.get(
     "BUCKET_NAME", "staging.sss-cc-gae-310003.appspot.com")
 PROJECT_ID = os.environ.get("PROJECT_ID", "sss-cc-gae-310003")
+
 # host flask server
 app = Flask(__name__)
-app.config['SECRET_KEY'] = SECRET_KEY
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-is_get = False
-
-# create socket connection
-# socketio = SocketIO(app)
-# allow requests from cross origin domains
-# socketio.init_app(app, cors_allowed_origins="*")
 
 # TODO: Create all topics and subscription if they
 # don't exists
@@ -67,25 +61,25 @@ sub_path = sub_client.subscription_path(
     PROJECT_ID, constants["job-worker-sub"])
 top_path = pub_client.topic_path(PROJECT_ID, constants["output-topic"])
 
-# GET & POST endpoint at '/'
+# POST endpoint at '/job/'
 
 
 @app.route('/job/', methods=['POST'])
 def process_job():
     envelope = json.loads(request.data.decode('utf-8'))
     data_str = base64.b64decode(envelope['message']['data'])
-    # data_str = payload.data.decode("UTF-8")
     data = json.loads(data_str)
     message = data["URL"]
-    value = redis_client.incr('messages_received')
+    
     # TEST PURPOSES ONLY
+    value = redis_client.incr('{}_messages_received'.format(data["JobId"]))
     eid = '2'
-    key = ds_client.key('Messages',eid)
+    key = ds_client.key('Messages', eid)
     entity = Entity(key=key, exclude_from_indexes=('description',))
     entity['description'] = "message_receieved"
     entity['value'] = value
     ds_client.put(entity)
-    
+
     # to prevent processing of same links
     job_id = data["JobId"]
 
@@ -102,6 +96,14 @@ def process_job():
         if redis_client.sismember(job_id, message):
             print('already parsed', message)
             # pay_load.ack()
+            value = redis_client.incr('{}_messages_skipped'.format(data["JobId"]))
+            # TEST PURPOSES ONLY
+            eid = '4'
+            key = ds_client.key('Messages',eid)
+            entity = Entity(key=key, exclude_from_indexes=('description',))
+            entity['description'] = "messages_skipped"
+            entity['value'] = value
+            ds_client.put(entity)
             return 'OK', 200
         # else add to set and process
         else:
@@ -120,20 +122,18 @@ def process_job():
         extract_links_others(message, data)
     # pay_load.ack()
     return 'OK', 200
+
 # socket io listeners and event emitters start here
 
 
-def output_listener_thread():
-    def output_callback(data):
-        msg = data.data.decode("UTF-8")
-        print('emitting result ', msg)
-        socketio.emit("partial_result", msg)
-        data.ack()
-    future = sub_client.subscribe(sub_path, callback=output_callback)
-    try:
-        future.result(timeout=None)
-    except:
-        future.cancel()
+@app.errorhandler(500)
+def server_error(e):
+    logging.exception('An error occurred during a request.')
+    logging.exception('Error was ----> \n{}\n'.format(e))
+    return """
+    An internal error occurred: <pre>{}</pre>
+    See logs for full stacktrace.
+    """.format(e), 500
 
 
 # TODO: listen to response subscription
