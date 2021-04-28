@@ -2,12 +2,12 @@
 
 runtime: python37
 
-inbound_services:
-- warmup
+# inbound_services:
+# - warmup
 
 automatic_scaling:
-  min_instances: 1
-  max_instances: 5
+  # min_instances: 1
+  max_instances: 19
   target_cpu_utilization: 0.8
   # min_pending_latency: 30ms
   # max_pending_latency: automatic
@@ -42,5 +42,5 @@ env_variables:
   # PORT: 8080
   BUCKET_NAME: "staging.sss-cc-gae-310003.appspot.com"
   PROJECT_ID: "sss-cc-gae-310003"
-  REDIS_HOST: "10.20.110.163"
+  REDIS_HOST: "10.10.10.115"
   REDIS_PORT: 6379

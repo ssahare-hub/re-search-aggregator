@@ -52,12 +52,9 @@ sub_path = sub_client.subscription_path(
     PROJECT_ID, constants["job-worker-sub"])
 
 flow_control = FlowControl(max_messages=50)
-
-
 redis_host = os.environ.get('REDIS_HOST', 'localhost')
 redis_port = os.environ.get('REDIS_PORT', '6379')
 redis_client = redis.Redis(host=redis_host, port=redis_port)
-redis_client.set('messages_received', 0)
 
 
 # argv = sys.argv[1]
@@ -75,7 +72,7 @@ def process_job(pay_load):
     data_str = pay_load.data.decode("UTF-8")
     data = json.loads(data_str)
     message = data["URL"]
-    value = redis_client.incr('messages_received')
+    value = redis_client.incr('{}_messages_received'.format(data["JobId"]))
     # to prevent processing of same links
     # TEST PURPOSES ONLY
     eid = '2'
@@ -99,6 +96,14 @@ def process_job(pay_load):
         if redis_client.sismember(job_id, message):
             print('already parsed', message)
             pay_load.ack()
+            value = redis_client.incr('{}_messages_skipped'.format(data["JobId"]))
+            # TEST PURPOSES ONLY
+            eid = '4'
+            key = ds_client.key('Messages',eid)
+            entity = Entity(key=key, exclude_from_indexes=('description',))
+            entity['description'] = "messages_skipped"
+            entity['value'] = value
+            ds_client.put(entity)
             return
         # else add to set and process
         else:
