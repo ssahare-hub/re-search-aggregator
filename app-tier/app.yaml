@@ -18,7 +18,7 @@ env_variables:
   #PORT: 8080
   BUCKET_NAME: "cc-test-309723.appspot.com"
   PROJECT_ID: "cc-test-309723"
-  REDIS_HOST: "10.4.47.51"
+  REDIS_HOST: "10.77.203.59"
   REDIS_PORT: 6379
 
 inbound_services:
