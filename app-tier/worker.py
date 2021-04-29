@@ -215,8 +215,8 @@ def extract_links_isearch(URL, data):
                     # add the paper content
                     papers_list.append(text_lower)
                     post_paperdata_entity(text_lower, prof_name)
-                    # with open('paperdata.txt','a') as f:
-                    #     f.writelines([prof_name, text_lower])
+                    with open('paperdata.txt','a') as f:
+                         f.writelines([prof_name, text_lower ,'\n'])
                     # TODO: improve this logic
                     # Extract author, paper and anything else extra
                     texts = text_lower.split(")")
