@@ -64,14 +64,6 @@ def publish_working_topic(data_obj):
     entity['description'] = "message_sent"
     entity['value'] = value
     ds_client.put(entity)
-
-
-
-
-# def publish_working_topic(data_obj):
-    data_str = json.dumps(data_obj)
-    data = data_str.encode("UTF-8")
-    redis_client.incr('messages_sent')
     try:
         future = pub_client.publish(top_path, data)
         job_id = future.result()

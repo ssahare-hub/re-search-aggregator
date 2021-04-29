@@ -38,7 +38,7 @@ BUCKET_NAME = os.environ.get(
     "BUCKET_NAME", "staging.sss-cc-gae-310003.appspot.com")
 PROJECT_ID = os.environ.get("PROJECT_ID", "sss-cc-gae-310003")
 request_count = 0
-1
+
 # UPLOAD THIS FILE ONTO YOUR CLOUD STORAGE
 download_blob(BUCKET_NAME, 'constants.json')
 constants = json.loads(c)
@@ -56,18 +56,6 @@ redis_host = os.environ.get('REDIS_HOST', 'localhost')
 redis_port = os.environ.get('REDIS_PORT', '6379')
 print (redis_host,redis_port, os.environ['REDIS_HOST'])
 redis_client = redis.Redis(host=redis_host, port=redis_port)
-
-
-# argv = sys.argv[1]
-# try:
-#     opts, args = getopt.getopt(argv,"d:",["delete="])
-# except getopt.GetoptError:
-#     print("Redis will not be flushed")
-# for opt, arg in opts:
-#     if opt == '-d':
-#         print("Flushing redis ", opt)
-#         redis_client.flushall()
-
 
 def process_job(pay_load):
     data_str = pay_load.data.decode("UTF-8")
