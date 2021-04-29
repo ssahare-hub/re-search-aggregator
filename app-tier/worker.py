@@ -1,3 +1,4 @@
+import fitz
 import redis
 import requests
 import os
@@ -14,7 +15,6 @@ from google.cloud.datastore import Client, Entity
 import urllib
 import traceback
 import pandas as pd
-from tika import parser
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -53,13 +53,14 @@ redis_client = redis.Redis(host=redis_host, port=redis_port)
 
 print('set redis message sent count')
 
+
 def publish_working_topic(data_obj):
     data_str = json.dumps(data_obj)
     data = data_str.encode("UTF-8")
     value = redis_client.incr('{}_messages_sent'.format(data_obj["JobId"]))
     # TEST PURPOSES ONLY
     eid = '1'
-    key = ds_client.key('Messages',eid)
+    key = ds_client.key('Messages', eid)
     entity = Entity(key=key, exclude_from_indexes=('description',))
     entity['description'] = "message_sent"
     entity['value'] = value
@@ -101,28 +102,32 @@ def post_link_job(URL, data):
         value = redis_client.incr('{}_messages_avoided'.format(data["JobId"]))
         # TEST PURPOSES ONLY
         eid = '3'
-        key = ds_client.key('Messages',eid)
+        key = ds_client.key('Messages', eid)
         entity = Entity(key=key, exclude_from_indexes=('description',))
         entity['description'] = "message_avoided"
         entity['value'] = value
         ds_client.put(entity)
+
 
 def is_link_not_in_cache(data):
     # skip processing this link
     # as it is already processed before
     job_id = data["JobId"]
     message = data["URL"]
-    return not redis_client.sismember(job_id, message) 
+    return not redis_client.sismember(job_id, message)
 
 # post the entity to datastore
 
+
 papers = set()
-def post_paperdata_entity(abstract, prof_name):
+
+
+def post_paperdata_entity(abstract, prof_name, put=False):
     if len(abstract) >= constants["min_abstract_len"]:
         # substitute new lines with special seperator
         abstract = re.sub('(?:\n|\r)+', '([NL])', abstract)
         # remove unreadable characters
-        abstract = re.sub(r"[^\x00-\x7f]", r" ", abstract)
+        abstract = re.sub(r"[^\x00-\x7f]", r"", abstract)
     else:
         return
     eid = str(uuid.uuid4())
@@ -130,12 +135,15 @@ def post_paperdata_entity(abstract, prof_name):
     entity = Entity(key=key, exclude_from_indexes=('abstract',))
     entity['abstract'] = abstract
     entity['professor'] = prof_name
+    if put:
+        entity['is_whole_pdf'] = put
     entry = '{},{}\n'.format(prof_name, abstract)
     papers.add(entry)
     # if len(papers) % 500 == 0:
     #     with open('/tmp/texts/papers_collected.txt', 'w') as f:
     #         f.writelines(list(papers))
-    # ds_client.put(entity)
+    if put:
+        ds_client.put(entity)
 
 
 # post the entity to datastore
@@ -166,6 +174,14 @@ def parse_faculty_page(URL, data):
     links = set()
 
     for prof_div in tqdm(prof_divs):
+        # get name
+        x = prof_div.select_one("div.et_pb_text_inner p strong")
+        name = 'Not found'
+        try:
+            name = x.text
+        except:
+            print("Name not found for a div.")
+        data["Meta"] = name
         # getting all links
         names_divs = prof_div.find_all("a")
         prof_obj = {}
@@ -178,7 +194,6 @@ def parse_faculty_page(URL, data):
                 isResearchWebsite = re.search("website", name.text.lower())
                 if not isResearchWebsite:
                     prof_obj["name"] = name.text
-                    prof_name = prof_obj["name"]
             if name["href"]:
                 href = name["href"].lower()
                 # filters emails
@@ -261,6 +276,7 @@ def extract_links_isearch(URL, data):
     else:
         print("Max level reached for {}, skipping".format(URL))
 
+
 def extract_links_others(URL, data):
     level = data["Level"]
     prof_name = data["Meta"]
@@ -324,7 +340,7 @@ def extract_links_others(URL, data):
                                 if content:
                                     publish_job(link, level, prof_name)
                                     links.add(link)
-                except :
+                except:
                     pass
         except Exception as e:
             print('='*40, 'OTHERS', '='*40)
@@ -335,30 +351,21 @@ def extract_links_others(URL, data):
 
 def extract_abstract(pdf):
     # parse the first page only
-    result = re.search('[\s\S]*Introduction', pdf[0])
-    if result:
-        return result[0]
-    return ''
+    # result = re.search('[\s\S]*Introduction', pdf)
+    # if result:
+    #     return result[0]
+    # return ''
+    return pdf
 
 
 def extract_page(file_path, pages=1):
-    from io import StringIO
-    from bs4 import BeautifulSoup
-    from tika import parser
-
-    file_data = {}
-    _buffer = StringIO()
-    data = parser.from_file(file_path, xmlContent=True)
-    xhtml_data = BeautifulSoup(data['content'])
-    for page, content in enumerate(xhtml_data.find_all('div', attrs={'class': 'page'})):
-        if page >= pages:
-            break
-        # print('Parsing page {} of pdf file...'.format(page+1))
-        _buffer.write(str(content))
-        parsed_content = parser.from_buffer(_buffer.getvalue())
-        _buffer.truncate()
-        file_data[page] = parsed_content['content']
-    return file_data
+    # this is pymupdf
+    with fitz.open(file_path) as doc:
+        text=''
+        for page in doc:
+            text += page.getText()
+        print('Processed {} - length {}'.format(file_path, len(text)))
+    return text
 
 
 abstracts = set()
@@ -369,10 +376,11 @@ def parse_pdf(URL, data):
     prof_name = data["Meta"]
     jobid = data["JobId"]
     # page = requests.get(URL)
+
     def download_file(download_url, filename):
         response = urllib.request.urlopen(download_url)
         # TODO: DO mkdir and create directory
-        path = '/tmp/pdfs/' + filename
+        path = '/tmp/' + filename
         file = open(path, 'wb')
         file.write(response.read())
         file.close()
@@ -385,12 +393,12 @@ def parse_pdf(URL, data):
         print(e)
         return
     # GIVE LOCAL PATH
-    path = './pdfs/' + file
+    path = '/tmp/' + file
     try:
         # try processing the pdf
         pdf = extract_page(path)
         abstract = extract_abstract(pdf)
-        post_paperdata_entity(abstract, prof_name)
+        post_paperdata_entity(abstract, prof_name, True)
 
         # TODO: Remove, only for testing
         # substitute new lines with special seperator
@@ -404,8 +412,7 @@ def parse_pdf(URL, data):
     except Exception as f:
         print('--------', 'Processing PDF', '--------')
         print(f)
-
-    # print('processed ', file)
+        print(traceback.print_exc()) 
     # delete pdf if processing done
     if os.path.exists(path):
         # print('deleted file ', file)

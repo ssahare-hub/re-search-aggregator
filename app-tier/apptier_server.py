@@ -94,7 +94,6 @@ def process_job():
         # if message is a member of job_id
         # we acknowledge the message and skip processing
         if redis_client.sismember(job_id, message):
-            print('already parsed', message)
             # pay_load.ack()
             value = redis_client.incr('{}_messages_skipped'.format(data["JobId"]))
             # TEST PURPOSES ONLY
