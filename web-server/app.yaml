@@ -8,8 +8,8 @@ network:
 
 env_variables:
   PORT: 8080
-  BUCKET_NAME: "staging.sss-cc-gae-310003.appspot.com"
-  PROJECT_ID: "sss-cc-gae-310003"
+  BUCKET_NAME: "shreyapat"
+  PROJECT_ID: "research-aggregator"
 
 inbound_services:
 - warmup

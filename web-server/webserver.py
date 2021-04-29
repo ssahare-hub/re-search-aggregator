@@ -39,8 +39,8 @@ UPLOAD_FOLDER = "/uploads/"
 # CHANGE THESE VALUES ACCORDING TO YOUR APP ENGINE ACCOUNT
 
 BUCKET_NAME = os.environ.get(
-    "BUCKET_NAME", "staging.sss-cc-gae-310003.appspot.com")
-PROJECT_ID = os.environ.get("PROJECT_ID", "sss-cc-gae-310003")
+    "BUCKET_NAME", "shreyapat")
+PROJECT_ID = os.environ.get("PROJECT_ID", "research-aggregator")
 
 # host flask server
 app = Flask(__name__)

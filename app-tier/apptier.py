@@ -35,8 +35,8 @@ def download_blob(bucket_name, source_blob_name):
 # CHANGE THESE VALUES ACCORDING TO YOUR APP ENGINE ACCOUNT
 # Or pass an environment variable thorught the start__ script
 BUCKET_NAME = os.environ.get(
-    "BUCKET_NAME", "staging.sss-cc-gae-310003.appspot.com")
-PROJECT_ID = os.environ.get("PROJECT_ID", "sss-cc-gae-310003")
+    "BUCKET_NAME", "shreyapat")
+PROJECT_ID = os.environ.get("PROJECT_ID", "research-aggregator")
 request_count = 0
 1
 # UPLOAD THIS FILE ONTO YOUR CLOUD STORAGE
@@ -56,7 +56,7 @@ flow_control = FlowControl(max_messages=50)
 
 redis_host = os.environ.get('REDIS_HOST', 'localhost')
 redis_port = os.environ.get('REDIS_PORT', '6379')
-print (redis_host,redis_port, os.environ['REDIS_HOST'])
+
 redis_client = redis.Redis(host=redis_host, port=redis_port)
 redis_client.set('messages_received', 0)
 

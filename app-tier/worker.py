@@ -29,8 +29,8 @@ def download_blob(bucket_name, source_blob_name):
 
 
 # CHANGE THESE VALUES ACCORDING TO YOUR APP ENGINE ACCOUNT
-BUCKET_NAME = "staging.sss-cc-gae-310003.appspot.com"
-PROJECT_ID = "sss-cc-gae-310003"
+BUCKET_NAME = "shreyapat"
+PROJECT_ID = "research-aggregator"
 URL_PATTERN = (
     "((http|https)://)(www.)?"
     + "[a-zA-Z0-9@:%._\\+~#?&//=]{2,256}\\.[a-z]"
@@ -49,7 +49,6 @@ top_path = pub_client.topic_path(PROJECT_ID, constants["job-topic"])
 redis_host = os.environ.get('REDIS_HOST', 'localhost')
 redis_port = os.environ.get('REDIS_PORT', '6379')
 
-print (redis_host,redis_port, os.environ['REDIS_HOST'])
 redis_client = redis.Redis(host=redis_host, port=redis_port)
 # print('flushing all messages from redis')
 redis_client.set('messages_sent', 0)

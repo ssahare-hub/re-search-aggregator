@@ -1,3 +1,3 @@
-$env:GOOGLE_APPLICATION_CREDENTIALS="$HOME\.ssh\base-owner-sa.json"
+$env:GOOGLE_APPLICATION_CREDENTIALS="C:\Users\spate100\base-owner-sa.json"
 $env:PROJECT=$(gcloud config get-value project)
 python ./apptier.py 

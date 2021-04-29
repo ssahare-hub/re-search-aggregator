@@ -39,7 +39,8 @@ network:
   session_affinity: true
 env_variables:
   # PORT: 8080
-  BUCKET_NAME: "staging.sss-cc-gae-310003.appspot.com"
-  PROJECT_ID: "sss-cc-gae-310003"
-  REDIS_HOST: "10.20.110.163"
+  BUCKET_NAME: "shreyapat"
+  PROJECT_ID: "research-aggregator"
+  REDIS_HOST: "10.40.112.3"
   REDIS_PORT: 6379
+ 
