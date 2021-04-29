@@ -94,12 +94,12 @@ def nlpprocessor(file_name):
     trigram_mod = gensim.models.phrases.Phraser(trigram)
 
     # see trigram example
+    keyword_list = []
     for i in range(50):
+        keyword_list.append(i)
         print(trigram_mod[bigram_mod[tokenized_data[i]]])
-    print(trigram_mod[bigram_mod[tokenized_data[0]]])
-    print(trigram_mod[bigram_mod[tokenized_data[34]]])
-    print(trigram_mod[bigram_mod[tokenized_data[9]]])
-    return trigram_mod[bigram_mod[tokenized_data[i]]]
+    
+    return keyword_list
     '''
     # define functions for creating bigrams and trigrams.
     def make_bigrams(texts):
