@@ -50,7 +50,7 @@ top_path = pub_client.topic_path(PROJECT_ID, constants["job-topic"])
 redis_host = os.environ.get('REDIS_HOST', 'localhost')
 redis_port = os.environ.get('REDIS_PORT', '6379')
 
-print (redis_host,redis_port, os.environ['REDIS_HOST'])
+###print (redis_host,redis_port, os.environ['REDIS_HOST'])
 redis_client = redis.Redis(host=redis_host, port=redis_port)
 # print('flushing all messages from redis')
 redis_client.set('messages_sent', 0)
@@ -128,7 +128,7 @@ def post_paperdata_entity(abstract, prof_name):
     entry = '{},{}\n'.format(prof_name, abstract)
     papers.add(entry)
     if len(papers) % 500 == 0:
-        with open('/tmp/texts/papers_collected.txt', 'w') as f:
+        with open('papers_collected.txt', 'w') as f:
             f.writelines(list(papers))
     ds_client.put(entity)
 
@@ -279,8 +279,8 @@ def extract_links_others(URL, data):
             for elem in list_elems:
                 text = elem.text.lower()
                 post_paperdata_entity(text, prof_name)
-                # with open('paperdata.txt','a') as f:
-                #     f.writelines([prof_name, text])
+                with open('paperdata.txt','a') as f:
+                     f.writelines([prof_name, text])
                 papers_list.append(text)
 
             # select all attributes
@@ -354,7 +354,7 @@ def parse_pdf(URL, data):
     def download_file(download_url, filename):
         response = urllib.request.urlopen(download_url)
         # TODO: DO mkdir and create directory
-        path = '/tmp/pdfs/' + filename
+        path = './pdfs/' + filename
         file = open(path, 'wb')
         file.write(response.read())
         file.close()
@@ -378,7 +378,7 @@ def parse_pdf(URL, data):
         # remove unreadable characters
         abstract = re.sub(r"[^\x00-\x7f]", r" ", abstract)
         abstracts.add('{}\n'.format(abstract))
-        with open('/tmp/texts/abstract.txt', 'w') as f:
+        with open('abstract.txt', 'w') as f:
             f.writelines(list(abstracts))
 
     except Exception as f:
