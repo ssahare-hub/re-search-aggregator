@@ -6,7 +6,7 @@ def nlpprocessor(file_name):
     import pandas as pd
     import numpy as np
     import nltk
-
+    import io  
     nltk.download('stopwords')
     nltk.download('wordnet')
     from nltk.corpus import wordnet as wn
