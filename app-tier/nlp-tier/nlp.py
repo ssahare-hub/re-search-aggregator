@@ -1,3 +1,17 @@
+import pandas
+import re
+import nltk
+#nltk.download('stopwords')
+from nltk.corpus import stopwords
+from nltk.stem.porter import PorterStemmer
+from nltk.tokenize import RegexpTokenizer
+#nltk.download('wordnet') 
+from nltk.stem.wordnet import WordNetLemmatizer
+from sklearn.feature_extraction.text import CountVectorizer
+import re
+from sklearn.feature_extraction.text import TfidfTransformer
+
+
 def keywords_extractor(abstract):
 
     mydataset = [{'abstract1': abstract}]
@@ -10,7 +24,7 @@ def keywords_extractor(abstract):
 
     ##Descriptive statistics of word counts
     dataset.word_count.describe()
-    # print(dataset.word_count.describe())
+    #print(dataset.word_count.describe())
 
     #Identify common words
     freq = pandas.Series(' '.join(dataset).split()).value_counts()[:20]
@@ -35,13 +49,14 @@ def keywords_extractor(abstract):
     text = text.lower()
     
     #remove tags
-    text=re.sub("&lt;/?.*?&gt;"," &lt;&gt; ",text)
+    text=re.sub("&lt;/?().*?&gt;"," &lt;&gt; ",text)
     
     # remove special characters and digits
     text=re.sub("(\\d|\\W)+"," ",text)
     
     ##Convert to list from string
     text = text.split()
+    #print(text)
         
         
     ##Stemming
@@ -54,7 +69,7 @@ def keywords_extractor(abstract):
     corpus.append(text)
 
     #View corpus item
-    corpus[0]
+    #corpus[0]
     cv=CountVectorizer(stop_words=stop_words, max_features=10000, ngram_range=(1,3))
     X=cv.fit_transform(corpus)
 
@@ -91,7 +106,7 @@ def keywords_extractor(abstract):
     top2_words = get_top_n2_words(corpus, n=20)
     top2_df = pandas.DataFrame(top2_words)
     top2_df.columns=["Bi-gram", "Freq"]
-    print(top2_df)
+    #print(top2_df)
 
     #Most frequently occuring Tri-grams
     def get_top_n3_words(corpus, n=None):
@@ -107,7 +122,7 @@ def keywords_extractor(abstract):
     top3_words = get_top_n3_words(corpus, n=20)
     top3_df = pandas.DataFrame(top3_words)
     top3_df.columns=["Tri-gram", "Freq"]
-    print(top3_df)
+    #print(top3_df)
 
 
     tfidf_transformer=TfidfTransformer(smooth_idf=True,use_idf=True)
@@ -116,6 +131,7 @@ def keywords_extractor(abstract):
     feature_names=cv.get_feature_names()
     
     # fetch document for which keywords needs to be extracted
+    #print (corpus)
     doc=corpus[0]
     
     #generate tf-idf for the given document
@@ -156,12 +172,15 @@ def keywords_extractor(abstract):
     keywords=extract_topn_from_vector(feature_names,sorted_items,5)
     
     # now print the results
-    print("\nAbstract:")
-    print(doc)
+    #print("\nAbstract:")
+    #print(doc)
+    abstract_keywords = []
     print("\nKeywords:")
     for k in keywords:
-        print(k,keywords[k])
-
+        abstract_keywords.append(k)
+        #print(k,keywords[k])
+    #(abstract_keywords)
+    return abstract_keywords
 
 
 keywords_extractor('Recent advances in machine learning open up new and attractive approaches for solving classic problems in computing systems. For storage systems, cache replacement is one such problem because of its enormous impact on performance. We classify workloads as a composition of four workload primitive types — LFU-friendly, LRU-friendly, scan, and churn. We then design and evaluate CACHEUS, a new class of fully adaptive, machine-learned caching algorithms that utilize a combination of experts designed to address these workload primitive types. The experts used by CACHEUS include the state-of-the-art ARC, LIRS and LFU, and two new ones – SR-LRU, a scan-resistant version of LRU, and CR-LFU, a churn-resistant version of LFU.')
