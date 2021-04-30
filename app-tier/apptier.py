@@ -33,7 +33,7 @@ BUCKET_NAME = os.environ.get(
     "BUCKET_NAME", "staging.sss-cc-gae-310003.appspot.com")
 PROJECT_ID = os.environ.get("PROJECT_ID", "sss-cc-gae-310003")
 request_count = 0
-1
+
 # UPLOAD THIS FILE ONTO YOUR CLOUD STORAGE
 download_blob(BUCKET_NAME, 'constants.json')
 constants = json.loads(c)

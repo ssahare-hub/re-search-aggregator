@@ -1,16 +1,49 @@
+from sklearn.feature_extraction.text import TfidfTransformer
+from sklearn.feature_extraction.text import CountVectorizer
+from nltk.stem.wordnet import WordNetLemmatizer
 import pandas
 import re
 import nltk
+import os
 from nltk.corpus import stopwords
 from nltk.stem.porter import PorterStemmer
 from nltk.tokenize import RegexpTokenizer
 nltk.download('stopwords')
 nltk.download('wordnet')
-from nltk.stem.wordnet import WordNetLemmatizer
-from sklearn.feature_extraction.text import CountVectorizer
-import re
-from sklearn.feature_extraction.text import TfidfTransformer
+from google.cloud import storage
+from google.cloud.pubsub_v1 import SubscriberClient
 
+def download_blob(bucket_name, source_blob_name):
+    """Downloads a blob from the bucket."""
+    # bucket_name = "your-bucket-name"
+    # source_blob_name = "storage-object-name"
+    # destination_file_name = "local/path/to/file"
+
+    storage_client = storage.Client()
+
+    bucket = storage_client.bucket(bucket_name)
+
+    # Construct a client side representation of a blob.
+    # Note `Bucket.blob` differs from `Bucket.get_blob` as it doesn't retrieve
+    # any content from Google Cloud Storage. As we don't need additional data,
+    # using `Bucket.blob` is preferred here.
+    blob = bucket.blob(source_blob_name)
+    # blob.download_to_filename(destination_file_name)
+    dl = blob.download_as_string()
+    print("download blob", dl)
+    return dl
+
+
+# CHANGE THESE VALUES ACCORDING TO YOUR APP ENGINE ACCOUNT
+# Or pass an environment variable thorught the start__ script
+BUCKET_NAME = os.environ.get(
+    "BUCKET_NAME", "staging.sss-cc-gae-310003.appspot.com")
+PROJECT_ID = os.environ.get("PROJECT_ID", "sss-cc-gae-310003")
+request_count = 0
+
+# UPLOAD THIS FILE ONTO YOUR CLOUD STORAGE
+download_blob(BUCKET_NAME, 'constants.json')
+constants = json.loads(c)
 
 sub_client = SubscriberClient()
 sub_path = sub_client.subscription_path(
@@ -181,5 +214,6 @@ def callback(message):
     datastore.put(entity)
     message.ack()
 
-streaming_pull_future = subscriber.subscribe(sub_path, callback=callback)
+
 print(f"Listening for messages on {sub_path}..\n")
+streaming_pull_future = subscriber.subscribe(sub_path, callback=callback)
