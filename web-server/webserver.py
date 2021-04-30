@@ -1,11 +1,13 @@
+import re
 import uuid
 import os
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify
 from threading import Thread
 from google.cloud import storage
 from google.cloud.pubsub_v1 import PublisherClient, SubscriberClient
 import json
-# from google.cloud.pubsub_v1.types import FlowControl
+from google.cloud.datastore import Client, Entity
+
 
 def download_blob(bucket_name, source_blob_name):
     """Downloads a blob from the bucket."""
@@ -46,7 +48,7 @@ app.config['SECRET_KEY'] = SECRET_KEY
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 is_get = False
 
-# TODO: Create all topics and subscription if they 
+# TODO: Create all topics and subscription if they
 # don't exists
 
 # UPLOAD THIS FILE ONTO YOUR CLOUD STORAGE
@@ -57,8 +59,11 @@ pub_client = PublisherClient()
 sub_client = SubscriberClient()
 sub_path = sub_client.subscription_path(PROJECT_ID, constants["result-sub"])
 top_path = pub_client.topic_path(PROJECT_ID, constants["job-topic"])
+ds_client = Client()
 
 # GET & POST endpoint at '/'
+
+
 @app.route('/', methods=['GET', 'POST'])
 def home_page():
     is_get = (request.method == 'GET')
@@ -74,9 +79,9 @@ def home_page():
         if website:
             job_id = str(uuid.uuid4())
             data_obj = {
-                "URL" : website,
-                "Type" : constants["faculty"],
-                "Level" : 0,
+                "URL": website,
+                "Type": constants["faculty"],
+                "Level": 0,
                 "Meta": "",
                 "JobId": job_id
             }
@@ -88,16 +93,36 @@ def home_page():
                 future.result()
             except:
                 print("CANNOT_PUBLISH_TO_TOPIC")
-        
+
     # get / render front end page
     return render_template(
-        'index.html'
-        , is_get = is_get
-        , job_id = job_id
+        'index.html', is_get=is_get, job_id=job_id
     )
+
+
+# GET & POST endpoint at '/'
+
+
+@app.route('/papers/', methods=['GET'])
+def get_papers():
+    query = ds_client.query(kind="ResearchPaperData")
+    query.order = "professor"
+    results = list(query.fetch(limit=10))
+    papers = []
+    for x in results:
+        obj = {}
+        obj["professor"] = x["professor"]
+        obj["keywords"] = x["keywords"]
+        obj["url"] = x["url"]
+        obj["title"] = x["title"]
+        obj["title"] = re.sub("\n", "", obj["title"])
+        obj["title"] = re.sub("\s{2,}", "", obj["title"])
+        papers.append(obj)
+    return jsonify(papers=papers)
 
 
 # TODO: listen to response subscription
 # listening to subscription for output topic
 if __name__ == '__main__':
     print('starting listening to server events')
+    # app.run(debug=True)
