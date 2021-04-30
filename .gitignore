@@ -8,3 +8,4 @@ sort_links.py
 texts/
 *.metals/
 nlpprocessor.py
+.idea/
