@@ -149,7 +149,7 @@ def post_paperdata_entity(abstract, prof_name, put=False, title='', URL=''):
 
 
 def post_professorinfo_entity(prof_obj):
-    eid = prof_obj["name"]
+    eid = prof_obj["name"] if "name" in prof_obj else str(uuid.uuid4())
     key = ds_client.key('Professor', eid)
     entity = Entity(key=key, exclude_from_indexes=('links',))
     for key in prof_obj.keys():
