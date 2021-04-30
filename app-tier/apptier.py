@@ -1,15 +1,10 @@
 from google.cloud.pubsub_v1 import PublisherClient, SubscriberClient
-import sys
 from google.cloud.pubsub_v1.types import FlowControl
-import json
 from google.cloud import storage
-import uuid
+import json
 import os
-import threading
-import time
 from worker import *
 import redis
-import getopt
 
 
 def download_blob(bucket_name, source_blob_name):
@@ -55,18 +50,6 @@ flow_control = FlowControl(max_messages=50)
 redis_host = os.environ.get('REDIS_HOST', 'localhost')
 redis_port = os.environ.get('REDIS_PORT', '6379')
 redis_client = redis.Redis(host=redis_host, port=redis_port)
-
-
-# argv = sys.argv[1]
-# try:
-#     opts, args = getopt.getopt(argv,"d:",["delete="])
-# except getopt.GetoptError:
-#     print("Redis will not be flushed")
-# for opt, arg in opts:
-#     if opt == '-d':
-#         print("Flushing redis ", opt)
-#         redis_client.flushall()
-
 
 def process_job(pay_load):
     data_str = pay_load.data.decode("UTF-8")
