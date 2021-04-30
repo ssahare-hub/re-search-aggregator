@@ -1,3 +1,4 @@
+from nlp import *
 import fitz
 import redis
 import requests
@@ -53,6 +54,7 @@ redis_port = os.environ.get('REDIS_PORT', '6379')
 redis_client = redis.Redis(host=redis_host, port=redis_port)
 
 print('set redis message sent count')
+
 
 def publish_working_topic(data_obj):
     data_str = json.dumps(data_obj)
@@ -119,7 +121,6 @@ def is_link_not_in_cache(data):
 # post the entity to datastore
 
 
-
 def post_paperdata_entity(abstract, prof_name, put=False, title='', URL=''):
     if len(abstract) >= constants["min_abstract_len"]:
         # substitute new lines with special seperator
@@ -129,30 +130,26 @@ def post_paperdata_entity(abstract, prof_name, put=False, title='', URL=''):
     else:
         print("Abstract data too small")
         return
-    eid = str(uuid.uuid4())
-    key = ds_client.key('DemoData', eid)
+
+    if title == '':
+        title = str(uuid.uuid4())
+    eid = title
+    key = ds_client.key('ResearchPaperData', eid)
     entity = Entity(key=key, exclude_from_indexes=('abstract',))
     entity['abstract'] = abstract
     entity['professor'] = prof_name
     entity['title'] = title
     entity['url'] = URL
     if put:
+        entity['keywords'] = keywords_extractor(abstract)
         # post in datastore
         ds_client.put(entity)
-        # publish message in nlp topic along with id
-        entity["id"] = eid
-        data_str = json.dumps(entity)
-        data = data_str.encode("UTF-8")
-        try:
-            future = pub_client.publish(nlp_path, data)
-            future.result()
-        except:
-            print("CANNOT_PUBLISH_TO_TOPIC")
-
 
 # post the entity to datastore
+
+
 def post_professorinfo_entity(prof_obj):
-    eid = prof_obj["email"]
+    eid = prof_obj["name"]
     key = ds_client.key('Professor', eid)
     entity = Entity(key=key, exclude_from_indexes=('links',))
     for key in prof_obj.keys():
@@ -369,11 +366,12 @@ def extract_abstract(pdf):
 def extract_page(file_path, pages=1):
     # this is pymupdf
     with fitz.open(file_path) as doc:
-        text=''
+        text = ''
         for page in doc:
             text += page.getText()
         print('Processed {} - length {}'.format(file_path, len(text)))
     return text
+
 
 def extract_title(body, prof_name):
     last = min(1000, len(body))
@@ -384,6 +382,7 @@ def extract_title(body, prof_name):
     if title:
         return title[0]
     return title_search_space
+
 
 def parse_pdf(URL, data):
     level = data["Level"]
@@ -416,7 +415,7 @@ def parse_pdf(URL, data):
     except Exception as f:
         print('--------', 'Processing PDF', '--------')
         print(f)
-        print(traceback.print_exc()) 
+        print(traceback.print_exc())
     # delete pdf if processing done
     if os.path.exists(path):
         # print('deleted file ', file)

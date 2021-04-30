@@ -10,46 +10,6 @@ from nltk.stem.porter import PorterStemmer
 from nltk.tokenize import RegexpTokenizer
 nltk.download('stopwords')
 nltk.download('wordnet')
-from google.cloud import storage
-from google.cloud.pubsub_v1 import SubscriberClient
-
-def download_blob(bucket_name, source_blob_name):
-    """Downloads a blob from the bucket."""
-    # bucket_name = "your-bucket-name"
-    # source_blob_name = "storage-object-name"
-    # destination_file_name = "local/path/to/file"
-
-    storage_client = storage.Client()
-
-    bucket = storage_client.bucket(bucket_name)
-
-    # Construct a client side representation of a blob.
-    # Note `Bucket.blob` differs from `Bucket.get_blob` as it doesn't retrieve
-    # any content from Google Cloud Storage. As we don't need additional data,
-    # using `Bucket.blob` is preferred here.
-    blob = bucket.blob(source_blob_name)
-    # blob.download_to_filename(destination_file_name)
-    dl = blob.download_as_string()
-    print("download blob", dl)
-    return dl
-
-
-# CHANGE THESE VALUES ACCORDING TO YOUR APP ENGINE ACCOUNT
-# Or pass an environment variable thorught the start__ script
-BUCKET_NAME = os.environ.get(
-    "BUCKET_NAME", "staging.sss-cc-gae-310003.appspot.com")
-PROJECT_ID = os.environ.get("PROJECT_ID", "sss-cc-gae-310003")
-request_count = 0
-
-# UPLOAD THIS FILE ONTO YOUR CLOUD STORAGE
-download_blob(BUCKET_NAME, 'constants.json')
-constants = json.loads(c)
-
-sub_client = SubscriberClient()
-sub_path = sub_client.subscription_path(
-    PROJECT_ID, constants["nlp-sub"])
-datastore = datastore.Client()
-
 
 def keywords_extractor(abstract):
 
@@ -126,7 +86,7 @@ def keywords_extractor(abstract):
     top2_words = get_top_n2_words(corpus, n=20)
     top2_df = pandas.DataFrame(top2_words)
     top2_df.columns = ["Bi-gram", "Freq"]
-    print(top2_df)
+    # print(top2_df)
 
     # Most frequently occuring Tri-grams
     def get_top_n3_words(corpus, n=None):
@@ -142,7 +102,7 @@ def keywords_extractor(abstract):
     top3_words = get_top_n3_words(corpus, n=20)
     top3_df = pandas.DataFrame(top3_words)
     top3_df.columns = ["Tri-gram", "Freq"]
-    print(top3_df)
+    # print(top3_df)
 
     tfidf_transformer = TfidfTransformer(smooth_idf=True, use_idf=True)
     tfidf_transformer.fit(X)
@@ -194,26 +154,9 @@ def keywords_extractor(abstract):
     # now print the results
     # print("\nAbstract:")
     abstract_keywords = []
-    print("\nKeywords:")
+    # print("\nKeywords:")
     for k in keywords:
         abstract_keywords.append(k)
         # print(k,keywords[k])
     print(abstract_keywords)
     return abstract_keywords
-
-
-def callback(message):
-    data_str = message.data.decode("UTF-8")
-    data = json.loads(data_str)
-    abstract = data["abstract"]
-    job_id = data["id"]
-    keywords = keywords_extractor(abstract)
-    key = datastore.key('DemoData', job_id)
-    entity = Entity(key=key)
-    entity['keywords'] = keywords
-    datastore.put(entity)
-    message.ack()
-
-
-print(f"Listening for messages on {sub_path}..\n")
-streaming_pull_future = subscriber.subscribe(sub_path, callback=callback)
