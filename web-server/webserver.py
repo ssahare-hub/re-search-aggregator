@@ -1,7 +1,6 @@
 import uuid
 import os
 from flask import Flask, render_template, request
-from flask_socketio import SocketIO
 from threading import Thread
 from google.cloud import storage
 from google.cloud.pubsub_v1 import PublisherClient, SubscriberClient
@@ -46,11 +45,6 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = SECRET_KEY
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 is_get = False
-
-# create socket connection
-socketio = SocketIO(app)
-# allow requests from cross origin domains
-socketio.init_app(app, cors_allowed_origins="*")
 
 # TODO: Create all topics and subscription if they 
 # don't exists
@@ -102,40 +96,8 @@ def home_page():
         , job_id = job_id
     )
 
-# socket io listeners and event emitters start here
-@socketio.on('connect')
-def connected():
-    print('connected')
-    socketio.emit('on_connect', is_get)
-
-
-@socketio.on('disconnect')
-def disconnected():
-    print('disconnected')
-
-
-def output_listener_thread():
-    def output_callback(data):
-        msg = data.data.decode("UTF-8")
-        print('emitting result ', msg)
-        socketio.emit("partial_result", msg)
-        data.ack()
-    future = sub_client.subscribe(sub_path, callback = output_callback)
-    try:
-        future.result(timeout=None)
-    except:
-        future.cancel()
-
 
 # TODO: listen to response subscription
 # listening to subscription for output topic
 if __name__ == '__main__':
-    print('starting listening to output sub')
-    t1 = Thread(target=output_listener_thread)
-    t1.start()
     print('starting listening to server events')
-    socketio.run(
-        app         
-        , host='0.0.0.0'
-        , port= os.environ.get('PORT',8080)
-    )

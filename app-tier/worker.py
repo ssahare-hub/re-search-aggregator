@@ -122,28 +122,26 @@ def is_link_not_in_cache(data):
 papers = set()
 
 
-def post_paperdata_entity(abstract, prof_name, put=False):
+def post_paperdata_entity(abstract, prof_name, put=False, title=''):
     if len(abstract) >= constants["min_abstract_len"]:
         # substitute new lines with special seperator
-        abstract = re.sub('(?:\n|\r)+', '([NL])', abstract)
+        abstract = re.sub('(?:\n|\r)+', ' ', abstract)
         # remove unreadable characters
         abstract = re.sub(r"[^\x00-\x7f]", r"", abstract)
     else:
+        print("Abstract data too small")
         return
     eid = str(uuid.uuid4())
-    key = ds_client.key('PaperData', eid)
+    key = ds_client.key('DemoData', eid)
     entity = Entity(key=key, exclude_from_indexes=('abstract',))
     entity['abstract'] = abstract
     entity['professor'] = prof_name
-    if put:
-        entity['is_whole_pdf'] = put
+    entity['title'] = title
     entry = '{},{}\n'.format(prof_name, abstract)
     papers.add(entry)
-    # if len(papers) % 500 == 0:
-    #     with open('/tmp/texts/papers_collected.txt', 'w') as f:
-    #         f.writelines(list(papers))
     if put:
         ds_client.put(entity)
+        # TODO: publish message in nlp topic along with id
 
 
 # post the entity to datastore
@@ -160,6 +158,8 @@ def parse_faculty_page(URL, data):
     level = data["Level"]
     prof_name = data["Meta"]
     jobid = data["JobId"]
+    level += 1
+
     # link to faculty page
     page = requests.get(URL, verify=False)
     soup = BeautifulSoup(page.content, "html.parser")
@@ -172,7 +172,6 @@ def parse_faculty_page(URL, data):
     prof_objs = []
 
     links = set()
-
     for prof_div in tqdm(prof_divs):
         # get name
         x = prof_div.select_one("div.et_pb_text_inner p strong")
@@ -182,6 +181,7 @@ def parse_faculty_page(URL, data):
         except:
             print("Name not found for a div.")
         data["Meta"] = name
+        data["Level"] = level
         # getting all links
         names_divs = prof_div.find_all("a")
         prof_obj = {}
@@ -224,6 +224,7 @@ def extract_links_isearch(URL, data):
     links = set()
     level += 1
     if level < constants["max_level"]:
+        data["Level"] = level
         try:
             # parse url and fetch webpage
             page = requests.get(URL, verify=False)
@@ -286,6 +287,7 @@ def extract_links_others(URL, data):
     lines = []
     level += 1
     if level < constants["max_level"]:
+        data["Level"] = level
         try:
             # parse url and fetch webpage
             page = requests.get(URL, verify=False)
@@ -300,7 +302,7 @@ def extract_links_others(URL, data):
                 text = re.sub(
                     "(?:([Pp][Dd][Ff])|([Bb][Ii][Bb][Tt][Ee][Xx]))", "", text)
                 # remove unnecessary new lines
-                text = re.sub("(?:\n|\r)+", "([NL])", text)
+                text = re.sub("(?:\n|\r)+", " ", text)
                 # remove unreadable characters
                 text = re.sub(r"[^\x00-\x7f]", r" ", text)
                 # append/publish only if greater than min len
@@ -367,19 +369,23 @@ def extract_page(file_path, pages=1):
         print('Processed {} - length {}'.format(file_path, len(text)))
     return text
 
-
-abstracts = set()
-
+def extract_title(body, prof_name):
+    last = min(1000, len(body))
+    title_search_space = body[:last]
+    title_search_space_lower = title_search_space.lower()
+    prof = prof_name.split(' ')[0].lower()
+    title = re.search('[\s\S]*{}'.format(prof), title_search_space_lower)
+    if title:
+        return title[0]
+    return title_search_space
 
 def parse_pdf(URL, data):
     level = data["Level"]
     prof_name = data["Meta"]
     jobid = data["JobId"]
-    # page = requests.get(URL)
 
     def download_file(download_url, filename):
         response = urllib.request.urlopen(download_url)
-        # TODO: DO mkdir and create directory
         path = '/tmp/' + filename
         file = open(path, 'wb')
         file.write(response.read())
@@ -398,16 +404,8 @@ def parse_pdf(URL, data):
         # try processing the pdf
         pdf = extract_page(path)
         abstract = extract_abstract(pdf)
-        post_paperdata_entity(abstract, prof_name, True)
-
-        # TODO: Remove, only for testing
-        # substitute new lines with special seperator
-        abstract = re.sub('(?:\n|\r)+', '([NL])', abstract)
-        # remove unreadable characters
-        abstract = re.sub(r"[^\x00-\x7f]", r" ", abstract)
-        abstracts.add('{}\n'.format(abstract))
-        # with open('/tmp/texts/abstract.txt', 'w') as f:
-        #     f.writelines(list(abstracts))
+        title = extract_title(abstract, prof_name)
+        post_paperdata_entity(abstract, prof_name, True, title)
 
     except Exception as f:
         print('--------', 'Processing PDF', '--------')
