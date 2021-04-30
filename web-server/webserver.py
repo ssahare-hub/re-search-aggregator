@@ -40,8 +40,8 @@ UPLOAD_FOLDER = "/uploads/"
 # CHANGE THESE VALUES ACCORDING TO YOUR APP ENGINE ACCOUNT
 
 BUCKET_NAME = os.environ.get(
-    "BUCKET_NAME", "staging.sss-cc-gae-310003.appspot.com")
-PROJECT_ID = os.environ.get("PROJECT_ID", "sss-cc-gae-310003")
+    "BUCKET_NAME", "shreyapat")
+PROJECT_ID = os.environ.get("PROJECT_ID", "research-aggregator")
 # host flask server
 app = Flask(__name__)
 app.config['SECRET_KEY'] = SECRET_KEY
@@ -148,4 +148,4 @@ def get_papers_cursor(page_num):
 # listening to subscription for output topic
 if __name__ == '__main__':
     print('starting listening to server events')
-    # app.run(debug=True)
+    app.run(debug=True)
