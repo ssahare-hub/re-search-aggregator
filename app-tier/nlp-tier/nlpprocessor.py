@@ -26,30 +26,17 @@ def nlpprocessor(file_name):
     Load the data file containing research papers into a dataframe called 'dataset'.
     """
     # load data file
-    dataset = pd.read_csv(r+file_name, encoding='ISO-8859–1')
+    # dataset = pd.read_csv(r+file_name, encoding='ISO-8859–1')
 
-    """# 3. Clean Data
+    # load data file
+    dataset = pd.read_csv(r'{}'.format(file_name), delimiter='\t')
 
-    I dropped the unnecessary columns like 'ID', 'Author','Year', 'Conference/Journal', and focused solely on the 'Abstract' and 'Conclusion' columns of each paper entry. For papers with no conclusions, I filled the empty cell with the text "No conclusion". Next, I merged the two columns 'Abstract' and 'Conclusion' to form a new column called 'PaperText'.
+    # I dropped the unnecessary columns like 'ID', 'Author','Year', 'Conference/Journal', and focused solely on the 'Abstract' and 'Conclusion' columns of each paper entry. For papers with no conclusions, I filled the empty cell with the text "No conclusion". Next, I merged the two columns 'Abstract' and 'Conclusion' to form a new column called 'PaperText'.
     """
-
     # remove the unecessary columns
     dataset = dataset.drop(columns=['Id', 'Reference', 'Authors', 'Year', 'Conference/ Journal'], axis=1)
-
-    # fill in the empty cells
-    dataset = dataset.fillna('No conclusion')
-
-    # merge abstract and conclusion
-    dataset['Paper_Text'] = dataset["Abstract"] + dataset["Conclusion"]
-
-    # show first 5 records
-    dataset.head()
-
-    """# 4. Preprocess Data
-
     Tokenize each sentence into a list of words, remove punctuations, remove stopwords and words of length less than 3, and then lemmatize.
     """
-
 
     # function for lemmatization
     def get_lemma(word):
@@ -59,23 +46,29 @@ def nlpprocessor(file_name):
         else:
             return lemma
 
+    dataset['Paper_Text'] = dataset["Abstract"]
 
     # tokenization
     tokenized_data = dataset['Paper_Text'].apply(lambda x: x.split())
 
     # remove punctuation
-    tokenized_data = tokenized_data.apply(lambda x: [re.sub('[-,()\\.!?]', '', item) for item in x])
+    tokenized_data = tokenized_data.apply(
+        lambda x: [re.sub('[-,()\\.!?]', '', item) for item in x])
 
     # turn to lowercase
-    tokenized_data = tokenized_data.apply(lambda x: [item.lower() for item in x])
+    tokenized_data = tokenized_data.apply(
+        lambda x: [item.lower() for item in x])
 
     # remove stop-words and short words
     stop_words = stopwords.words('english')
-    stop_words.extend(['from', 'use', 'uses', 'user', 'users' 'well', 'study', 'survey', 'structjumper', 'think'])
-    tokenized_data = tokenized_data.apply(lambda x: [item for item in x if item not in stop_words and len(item) > 3])
+    stop_words.extend(['from', 'use', 'uses', 'user', 'users' 'well',
+                      'study', 'survey', 'structjumper', 'think'])
+    tokenized_data = tokenized_data.apply(
+        lambda x: [item for item in x if item not in stop_words and len(item) > 3])
 
     # lemmatize by calling lemmatization function
-    tokenized_data = tokenized_data.apply(lambda x: [get_lemma(item) for item in x])
+    tokenized_data = tokenized_data.apply(
+        lambda x: [get_lemma(item) for item in x])
 
     """# 5. Creating Bigrams and Trigrams
     Bigrams are two words frequently occurring together in the document. Trigrams are 3 words frequently occurring.
@@ -86,7 +79,8 @@ def nlpprocessor(file_name):
     """
 
     # build the bigram and trigram models
-    bigram = gensim.models.Phrases(tokenized_data, min_count=5, threshold=10)  # higher threshold fewer phrases.
+    # higher threshold fewer phrases.
+    bigram = gensim.models.Phrases(tokenized_data, min_count=5, threshold=10)
     trigram = gensim.models.Phrases(bigram[tokenized_data], threshold=10)
 
     # faster way to get a sentence clubbed as a trigram/bigram
@@ -95,10 +89,10 @@ def nlpprocessor(file_name):
 
     # see trigram example
     keyword_list = []
-    for i in range(50):
+    for i in range(min(50, len(tokenized_data))):
         keyword_list.append(i)
         print(trigram_mod[bigram_mod[tokenized_data[i]]])
-    
+
     return keyword_list
     '''
     # define functions for creating bigrams and trigrams.
@@ -125,3 +119,6 @@ def nlpprocessor(file_name):
     dataset['clean_text'] = detokenized_data
     documents = dataset['clean_text']
     '''
+
+
+print(nlpprocessor('abstract.csv'))
