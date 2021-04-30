@@ -45,6 +45,7 @@ ds_client = Client()
 
 pub_client = PublisherClient()
 top_path = pub_client.topic_path(PROJECT_ID, constants["job-topic"])
+nlp_path = pub_client.topic_path(PROJECT_ID, constants["nlp-topic"])
 
 redis_host = os.environ.get('REDIS_HOST', 'localhost')
 redis_port = os.environ.get('REDIS_PORT', '6379')
@@ -52,7 +53,6 @@ redis_port = os.environ.get('REDIS_PORT', '6379')
 redis_client = redis.Redis(host=redis_host, port=redis_port)
 
 print('set redis message sent count')
-
 
 def publish_working_topic(data_obj):
     data_str = json.dumps(data_obj)
@@ -119,10 +119,8 @@ def is_link_not_in_cache(data):
 # post the entity to datastore
 
 
-papers = set()
 
-
-def post_paperdata_entity(abstract, prof_name, put=False, title=''):
+def post_paperdata_entity(abstract, prof_name, put=False, title='', URL=''):
     if len(abstract) >= constants["min_abstract_len"]:
         # substitute new lines with special seperator
         abstract = re.sub('(?:\n|\r)+', ' ', abstract)
@@ -137,21 +135,29 @@ def post_paperdata_entity(abstract, prof_name, put=False, title=''):
     entity['abstract'] = abstract
     entity['professor'] = prof_name
     entity['title'] = title
-    entry = '{},{}\n'.format(prof_name, abstract)
-    papers.add(entry)
+    entity['url'] = URL
     if put:
+        # post in datastore
         ds_client.put(entity)
-        # TODO: publish message in nlp topic along with id
+        # publish message in nlp topic along with id
+        entity["id"] = eid
+        data_str = json.dumps(entity)
+        data = data_str.encode("UTF-8")
+        try:
+            future = pub_client.publish(nlp_path, data)
+            future.result()
+        except:
+            print("CANNOT_PUBLISH_TO_TOPIC")
 
 
 # post the entity to datastore
 def post_professorinfo_entity(prof_obj):
-    eid = str(uuid.uuid4())
+    eid = prof_obj["email"]
     key = ds_client.key('Professor', eid)
     entity = Entity(key=key, exclude_from_indexes=('links',))
     for key in prof_obj.keys():
         entity[key] = prof_obj[key]
-    # ds_client.put(entity)
+    ds_client.put(entity)
 
 
 def parse_faculty_page(URL, data):
@@ -405,7 +411,7 @@ def parse_pdf(URL, data):
         pdf = extract_page(path)
         abstract = extract_abstract(pdf)
         title = extract_title(abstract, prof_name)
-        post_paperdata_entity(abstract, prof_name, True, title)
+        post_paperdata_entity(abstract, prof_name, True, title, URL)
 
     except Exception as f:
         print('--------', 'Processing PDF', '--------')
