@@ -107,7 +107,9 @@ def home_page():
 def get_papers():
     query = ds_client.query(kind="ResearchPaperData")
     query.order = "professor"
-    results = list(query.fetch(limit=10))
+    user_limit = request.args.get('limit')
+    limit = user_limit if user_limit else 10
+    results = list(query.fetch(limit=limit))
     papers = []
     for x in results:
         obj = {}
@@ -117,6 +119,27 @@ def get_papers():
         obj["title"] = x["title"]
         obj["title"] = re.sub("\n", "", obj["title"])
         obj["title"] = re.sub("\s{2,}", "", obj["title"])
+        papers.append(obj)
+    return jsonify(papers=papers)
+
+
+@app.route('/papers/<page_num>', methods=['GET'])
+def get_papers_cursor(page_num):
+    query = ds_client.query(kind="ResearchPaperData")
+    query.order = "professor"
+    user_limit = request.args.get('limit')
+    limit = int(user_limit) if user_limit else 10
+    offset = int(page_num) * limit
+    results = list(query.fetch(offset=offset, limit=limit))
+    papers = []
+    for x in results:
+        obj = {}
+        obj["professor"] = x["professor"]
+        obj["keywords"] = x["keywords"]
+        obj["url"] = x["url"]
+        obj["title"] = x["title"]
+        obj["title"] = re.sub("(?:\n|\s{2,})", "", obj["title"])
+        # obj["title"] = re.sub("", "", obj["title"])
         papers.append(obj)
     return jsonify(papers=papers)
 
