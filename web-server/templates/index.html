@@ -7,6 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta2/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-BmbxuPwQa2lc/FVzBcNJ7UAyJxM6wuqIj61tLrc4wSX0szH/Ev+nYRRuWlolflfl" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://unpkg.com/bootstrap-table@1.18.3/dist/bootstrap-table.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"> </script>
 
@@ -57,7 +58,7 @@
                 <h5 class="card-title">
                     Request Successful...
                 </h5>
-                <button type="submit" onclick="CreateTableFromJSON()"></button>
+                <button type="submit" id="data_button" class="btn btn-primary">Get Data</button>
                 <div class="row">
                     <div class="col-md-12">
                         <div class="card">
@@ -69,7 +70,20 @@
                                     <div class="row" id='log-container-1'>
                                     </div>
                                 </div>
-                                <p id="showData"></p>
+                                <div id="showData">
+                                    <table id="table" data-detail-view="true" data-detail-formatter="detailFormatter"
+                                        class="table-hover table-bordered table-sm table-striped" 
+                                        >
+                                        <!-- data-toggle="table" -->
+                                        <thead>
+                                            <!-- <tr>
+                                                <th class="col-sm-4" data-field="title">Title</th> -->
+                                            <th class="col-sm-2" data-field="professor">Professor</th>
+                                            <th class="col-sm-4" data-field="url">Paper URL</th>
+                                            <th class="col-sm-10" data-field="keywords">Keywords</th>
+                                            </tr>
+                                        </thead>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -81,54 +95,38 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta2/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-b5kHyXgcpbZJO/tY9Ul7kGkf1S0CWuKcCD38l8YkeH8z8QjE0GmW1gYU5S9FOnJ0"
         crossorigin="anonymous"></script>
-    <script></script>
+    <script src="https://unpkg.com/bootstrap-table@1.18.3/dist/bootstrap-table.min.js"></script>
     <script>
-        function CreateTableFromJSON() {
-            var newobj = [{
-                "url": "https://gsfdfuhshahj.com",
-                "abstract": "gwdgfgsa agsdsygdha ausdyauisydiays ",
-                "keywords": "wygdfsa ahsvdgfsdg",
-                "professor": "ming zhao",
-                "id": "1hfgf2"
-            }, {
-                "url": "https://gsfdfuhshahj.com",
-                "abstract": "gwdgfgsa agsdsygdha ausdyauisydiays ",
-                "keywords": "wygdfsa ahsvdgfsdg",
-                "professor": "ming zhao",
-                "id": "1hfgf2"
-            }];
-            var col = [];
-            for (var i = 0; i < newobj.length; i++) {
-                for (var key in newobj[i]) {
-                    if (col.indexOf(key) === -1) {
-                        col.push(key);
-                    }
+        $("#data_button").click(function () {
+            $.ajax({
+                url: "/papers/", method: "GET", success: function (data) {
+                    results = data["papers"]
+                    CreateTableFromJSON(results)
                 }
-            }
-            var table = document.createElement("table");
-            var tr = table.insertRow(-1);
+            })
+        })
 
-            for (var i = 0; i < col.length; i++) {
-                var th = document.createElement("th");      // TABLE HEADER.
-                th.innerHTML = col[i];
-                tr.appendChild(th);
-            }
-
-            // ADD JSON DATA TO THE TABLE AS ROWS.
-            for (var i = 0; i < newobj.length; i++) {
-
-                tr = table.insertRow(-1);
-
-                for (var j = 0; j < col.length; j++) {
-                    var tabCell = tr.insertCell(-1);
-                    tabCell.innerHTML = newobj[i][col[j]];
+        function CreateTableFromJSON(newobj) {
+            $(function () {
+                $('#table').bootstrapTable({
+                    data: newobj,
+                    pagination: true,
+                    search: true,
+                    showSearchButton: true,
+                    detailView: true
+                });
+            });
+        }
+    </script>
+    <script>
+        function detailFormatter(index, row) {
+            var html = []
+            $.each(row, function (key, value) {
+                if (key == "title") {
+                    html.push('<p' + value + '</p>')
                 }
-            }
-
-            // FINALLY ADD THE NEWLY CREATED TABLE WITH JSON DATA TO A CONTAINER.
-            var divContainer = document.getElementById("showData");
-            divContainer.innerHTML = "";
-            divContainer.appendChild(table);
+            })
+            return html.join('')
         }
     </script>
 </body>

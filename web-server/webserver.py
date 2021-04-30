@@ -38,10 +38,9 @@ def download_blob(bucket_name, source_blob_name):
 SECRET_KEY = "VERYCONFIDENTIAL"
 UPLOAD_FOLDER = "/uploads/"
 # CHANGE THESE VALUES ACCORDING TO YOUR APP ENGINE ACCOUNT
-
 BUCKET_NAME = os.environ.get(
-    "BUCKET_NAME", "shreyapat")
-PROJECT_ID = os.environ.get("PROJECT_ID", "research-aggregator")
+    "BUCKET_NAME", "staging.sss-cc-gae-310003.appspot.com")
+PROJECT_ID = os.environ.get("PROJECT_ID", "sss-cc-gae-310003")
 # host flask server
 app = Flask(__name__)
 app.config['SECRET_KEY'] = SECRET_KEY
@@ -108,8 +107,8 @@ def get_papers():
     query = ds_client.query(kind="ResearchPaperData")
     query.order = "professor"
     user_limit = request.args.get('limit')
-    limit = user_limit if user_limit else 10
-    results = list(query.fetch(limit=limit))
+    # limit = user_limit if user_limit else 10
+    results = list(query.fetch())
     papers = []
     for x in results:
         obj = {}
@@ -139,7 +138,6 @@ def get_papers_cursor(page_num):
         obj["url"] = x["url"]
         obj["title"] = x["title"]
         obj["title"] = re.sub("(?:\n|\s{2,})", "", obj["title"])
-        # obj["title"] = re.sub("", "", obj["title"])
         papers.append(obj)
     return jsonify(papers=papers)
 
@@ -148,4 +146,4 @@ def get_papers_cursor(page_num):
 # listening to subscription for output topic
 if __name__ == '__main__':
     print('starting listening to server events')
-    app.run(debug=True)
+    # app.run(debug=True)
